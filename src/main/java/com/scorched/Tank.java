@@ -73,6 +73,7 @@ public class Tank {
 				int fallDamage = excessiveFall / 2;
 
 				if (fallDamage > 0) {
+					SoundEngine.playFallDamageSound();
 					this.takeDamage(fallDamage);
 					if (damageListener != null) {
 			            damageListener.onTankTakeDamage(this.x, this.y, fallDamage);
@@ -146,8 +147,10 @@ public class Tank {
 		// Keep angle between 0 and 180 degrees
 		if (barrelAngle > 180)
 			barrelAngle = 180;
-		if (barrelAngle < 0)
+		else if (barrelAngle < 0)
 			barrelAngle = 0;
+		else
+			SoundEngine.playBarrelRotateSound();
 	}
 
 	public double getPower() {
@@ -159,8 +162,10 @@ public class Tank {
 		// Keep power between 1 and 25
 		if (this.power < 1.0)
 			this.power = 1.0;
-		if (this.power > 25.0)
+		else if (this.power > 25.0)
 			this.power = 25.0;
+		else
+			SoundEngine.playPowerChargeSound(power);
 	}
 
 	public boolean isAlive() {
