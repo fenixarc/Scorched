@@ -1,39 +1,46 @@
 package com.scorched;
+
 import javax.swing.JFrame;
 import java.awt.Dimension;
 import java.awt.Toolkit;
 
-public class GameWindow {
+public class GameWindow extends JFrame {
 
-	public static void main(String[] args) {
-		JFrame window = new JFrame();
+    // Constructor handles configuration and dependency injection
+    public GameWindow(GameEngine gameEngine) {
+        super("Scorched");
+        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-		window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		window.setTitle("Scorched");
+        // Fullscreen borderless
+        this.setUndecorated(true);
 
-		// Fullscreen borderless
-		window.setUndecorated(true);
+        // Setup gameEngine component
+        this.add(gameEngine);
 
-		// Get screen dimensions
-		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		int screenWidth = (int) screenSize.getWidth();
-		int screenHeight = (int) screenSize.getHeight();
+        // Fit the window
+        this.pack();
 
-		// Setup gameEngine
-		GameEngine gameEngine = new GameEngine(screenWidth, screenHeight);
-		window.add(gameEngine);
+        // Lock window to top-left corner and maximize across screen
+        this.setLocationRelativeTo(null);
+        this.setExtendedState(JFrame.MAXIMIZED_BOTH);
+    }
 
-		// Fit the window
-		window.pack();
+    public static void main(String[] args) {
+        // Gather environment data
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int screenWidth = (int) screenSize.getWidth();
+        int screenHeight = (int) screenSize.getHeight();
 
-		// Lock window to top-left corner and maximize across screen
-		window.setLocationRelativeTo(null);
-		window.setExtendedState(JFrame.MAXIMIZED_BOTH);
+        // Create dependencies
+        GameEngine gameEngine = new GameEngine(screenWidth, screenHeight);
 
-		window.setVisible(true);
+        // Construct and display the window
+        GameWindow window = new GameWindow(gameEngine);
+        window.setVisible(true);
 
-		System.out.println("Game window created");
+        System.out.println("Game window created");
 
-		gameEngine.startGameLoop();
-	}
+        // Start execution
+        gameEngine.startGameLoop();
+    }
 }
