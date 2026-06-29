@@ -273,8 +273,14 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        if (!lockControls && activePlayerIndex < players.size()) {
 	            Tank activeTank = players.get(activePlayerIndex);
 	            if (activeTank.isAlive()) {
-	                if (keys[KeyEvent.VK_LEFT])  activeTank.changeAngle(1);
-	                if (keys[KeyEvent.VK_RIGHT]) activeTank.changeAngle(-1);
+	                if (keys[KeyEvent.VK_LEFT]) {
+	                	SoundEngine.playBarrelRotateSound();
+	                	activeTank.changeAngle(1);
+	                }
+	                if (keys[KeyEvent.VK_RIGHT]) {
+	                	SoundEngine.playBarrelRotateSound();
+	                	activeTank.changeAngle(-1);
+	                }
 	                if (keys[KeyEvent.VK_UP])    activeTank.changePower(0.15);
 	                if (keys[KeyEvent.VK_DOWN])  activeTank.changePower(-0.15);
 	            }
@@ -554,6 +560,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			
 			// ENTER Key
 			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+				SoundEngine.playMenuConfirmSound();
 				SoundEngine.stopMusic();
 				currentState = State.PLAYING;
 				SoundEngine.startMusic(MusicTracksList.DESERT_THEME);
@@ -609,11 +616,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 			// UP Key
 			if (e.getKeyCode() == KeyEvent.VK_UP) {
+				SoundEngine.playMenuSelectSound();
 				selectedPauseOption = 0;
 			}
 
 			// DOWN Key
 			if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+				SoundEngine.playMenuSelectSound();
 				selectedPauseOption = 1;
 			}
 
@@ -621,9 +630,11 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 				if (selectedPauseOption == 0) {
 					// Placeholder for Settings menu actions
+					SoundEngine.playMenuConfirmSound();
 					System.out.println("Settings Screen Selected");
 				} else if (selectedPauseOption == 1) {
 					// Exit battle back to Main Menu
+					SoundEngine.playMenuConfirmSound();
 					SoundEngine.stopMusic();
 					currentState = State.MAIN_MENU;
 					SoundEngine.startMusic(MusicTracksList.MENU_THEME);
