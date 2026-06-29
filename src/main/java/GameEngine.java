@@ -189,116 +189,109 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	}
 
 	private void update() {
-		if (!isGeneratingWorld && currentState == State.PLAYING) {
+	    if (!isGeneratingWorld && currentState == State.PLAYING) {
 
-			// Apply gravity to all tanks
-			boolean tanksMoving = false;
-			for (Tank t : players) {
-				if (t.applyGravity(terrain)) {
-					tanksMoving = true;
-				}
-			}
+	        // 1. Core Animations & Effect Updates (Explosions and Floating Text)
+	        for (int i = activeDebris.size() - 1; i >= 0; i--) {
+	            TurretDebris d = activeDebris.get(i);
+	            d.update(terrain, WIDTH, HEIGHT);
+	            if (!d.isActive()) activeDebris.remove(i);
+	        }
+	        
+	        for (int i = activeExplosions.size() - 1; i >= 0; i--) {
+	            Explosion exp = activeExplosions.get(i);
+	            exp.update();
+	            if (!exp.isActive()) activeExplosions.remove(i);
+	        }
+	        
+	        for (int i = floatingTexts.size() - 1; i >= 0; i--) {
+	            FloatingText ft = floatingTexts.get(i);
+	            if (!ft.update()) floatingTexts.remove(i);
+	        }
 
-			boolean projectileInAir = (activeProjectile != null && activeProjectile.isActive());
+	        // 2. Track Phase Flags
+	        boolean projectileInAir = (activeProjectile != null && activeProjectile.isActive());
+	        boolean explosionsRunning = !activeExplosions.isEmpty();
+	        boolean terrainFalling = false;
+	        boolean tanksMoving = false;
 
-			// Lock inputs & route control to the current active tank
-			if (!lockControls && !projectileInAir && !tanksMoving && activePlayerIndex < players.size()) {
-				Tank activeTank = players.get(activePlayerIndex);
+	        // 3. Sequential Physics Execution
+	        if (projectileInAir) {
+	            // PHASE A: Projectile is flying
+	            activeProjectile.update(terrain, players, WIDTH, HEIGHT);
 
-				if (activeTank.isAlive()) {
-					if (keys[KeyEvent.VK_LEFT])
-						activeTank.changeAngle(1);
-					if (keys[KeyEvent.VK_RIGHT])
-						activeTank.changeAngle(-1);
-					if (keys[KeyEvent.VK_UP])
-						activeTank.changePower(0.15);
-					if (keys[KeyEvent.VK_DOWN])
-						activeTank.changePower(-0.15);
-				}
-			}
+	            if (!activeProjectile.isActive()) {
+	                int ex = activeProjectile.getImpactX();
+	                int ey = activeProjectile.getImpactY();
+	                int blastRadius = activeProjectile.getExplosionRadius();
+	                
+	                // Create visual explosion and explode terrain (leaves dirt floating)
+	                activeExplosions.add(new Explosion(ex, ey));
+	                terrain.explode(ex, ey, blastRadius);
 
-			// Update physics calculations for flying projectiles
-			if (activeProjectile != null && activeProjectile.isActive()) {
-				activeProjectile.update(terrain, players, WIDTH, HEIGHT);
+	                // Calculate blast damage immediately upon impact
+	                for (Tank t : players) {
+	                    if (t.isAlive()) {
+	                        double dist = Math.hypot(t.getX() - ex, t.getY() - ey);
+	                        if (dist < blastRadius) {
+	                            double damageFactor = 1.0 - (dist / blastRadius);
+	                            int damage = (int) (damageFactor * activeProjectile.getDamage());
+	                            t.takeDamage(damage);
+	                            spawnDamageText(t.getX() - 10, t.getY(), damage);
+	                        }
+	                    }
+	                }
+	            }
+	        } 
+	        else if (explosionsRunning) {
+	            // PHASE B: Projectile is done, wait for explosion animations to wrap up
+	            // (Terrain is held in place during the blast sparkle)
+	        } 
+	        else {
+	            // PHASE C: Projectiles and explosions are finished. Now run terrain physics.
+	            terrainFalling = terrain.update();
 
-				// Check if it collided on this specific frame
-				if (!activeProjectile.isActive()) {
+	            if (!terrainFalling) {
+	                // PHASE D: Terrain has completely finished collapsing. Now apply tank gravity.
+	                for (Tank t : players) {
+	                    if (t.applyGravity(terrain)) {
+	                        tanksMoving = true; 
+	                    }
+	                }
+	            }
+	        }
 
-					// Get impact details from the projectile position
-					int ex = activeProjectile.getImpactX();
-					int ey = activeProjectile.getImpactY();
-					int blastRadius = activeProjectile.getExplosionRadius();
-					
-					// Create visual explosion effect
-					activeExplosions.add(new Explosion(ex, ey));
+	        if (!lockControls && activePlayerIndex < players.size()) {
+	            Tank activeTank = players.get(activePlayerIndex);
+	            if (activeTank.isAlive()) {
+	                if (keys[KeyEvent.VK_LEFT])  activeTank.changeAngle(1);
+	                if (keys[KeyEvent.VK_RIGHT]) activeTank.changeAngle(-1);
+	                if (keys[KeyEvent.VK_UP])    activeTank.changePower(0.15);
+	                if (keys[KeyEvent.VK_DOWN])  activeTank.changePower(-0.15);
+	            }
+	        }
 
-					// Calculate damage on all living tanks
-					for (Tank t : players) {
-						if (t.isAlive()) {
-							double dist = Math.hypot(t.getX() - ex, t.getY() - ey);
-							if (dist < blastRadius) {
-								double damageFactor = 1.0 - (dist / blastRadius);
-								int damage = (int) (damageFactor * activeProjectile.getDamage());
-								t.takeDamage(damage);
-								spawnDamageText(t.getX() - 10, t.getY(), damage);
-							}
-						}
-					}
-				}
-			}
-			
-			// Animate all exploding turrets
-			for (int i = activeDebris.size() - 1; i >= 0; i--) {
-			    TurretDebris d = activeDebris.get(i);
-			    d.update(terrain, WIDTH, HEIGHT);
-			    // can leave dead debris in the list for wreckage
-			    if (!d.isActive())
-			    	activeDebris.remove(i); // Clean up memory once done animating
-			}
-			
-			// Animate all running visual explosions
-		    for (int i = activeExplosions.size() - 1; i >= 0; i--) {
-		        Explosion exp = activeExplosions.get(i);
-		        exp.update();
-		        if (!exp.isActive()) {
-		            activeExplosions.remove(i); // Clean up memory once done animating
-		        }
-		    }
-		    
-		    // Animate floating damage text
-		    for (int i = floatingTexts.size() - 1; i >= 0; i--) {
-		        FloatingText ft = floatingTexts.get(i);
-		        if (!ft.update()) {
-		            floatingTexts.remove(i); // Clean up memory once done animating
-		        }
-		    }
-		    
-		    boolean explosionsRunning = !activeExplosions.isEmpty();
+	        // 5. Turn Management and Round-End Processing
+	        // Turn switches only when everything has completely settled down
+	        if (!projectileInAir && !explosionsRunning && !terrainFalling && !tanksMoving && lockControls) {
+	            
+	            activeProjectile = null;
 
-			// Turn Management and End Round Evaluation Checks
-			if (activeProjectile != null && !activeProjectile.isActive() && !tanksMoving && !explosionsRunning
-					&& currentState == State.PLAYING) {
-				activeProjectile = null;
+	            int survivorsCount = 0;
+	            for (Tank t : players) {
+	                if (t.isAlive()) survivorsCount++;
+	            }
 
-				// Check how many players are still alive
-				int survivorsCount = 0;
-				for (Tank t : players) {
-					if (t.isAlive())
-						survivorsCount++;
-				}
-
-				// If only 1 tank (or 0) survives, end the match!
-				if (survivorsCount <= 1) {
-					SoundEngine.stopMusic();
-					SoundEngine.startMusic(MusicTracksList.VICTORY_THEME);
-					currentState = State.GAME_OVER;
-				} else {
-					// Otherwise advance control sequentially down the array lineup
-					switchTurn();
-					lockControls = false;
-				}
-			}
-		}
+	            if (survivorsCount <= 1) {
+	                SoundEngine.stopMusic();
+	                SoundEngine.startMusic(MusicTracksList.VICTORY_THEME);
+	                currentState = State.GAME_OVER;
+	            } else {
+	                switchTurn();
+	                lockControls = false; // Safely release controls for the next turn
+	            }
+	        }
+	    }
 	}
 	
 	/**
