@@ -27,11 +27,14 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	// Game States
 	private enum State {
-		MAIN_MENU, PLAYING, GAME_OVER
+		MAIN_MENU, PLAYING, PAUSED, GAME_OVER
 	}
 
 	private State currentState = State.MAIN_MENU;
 	private volatile boolean isGeneratingWorld = false;
+	
+	// Pause Menu Selection (0 = Settings, 1 = Exit Battle)
+	private int selectedPauseOption;
 
 	// Main Menu
 	private BufferedImage splashImage;
@@ -95,6 +98,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	 */
 	public void startNewGame() {
 		isGeneratingWorld = true;
+		selectedPauseOption = 0;
 		
 		// Pick a random environment bundle
 	    java.util.Random rand = new java.util.Random();
@@ -190,6 +194,10 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	}
 
 	private void update() {
+		if (currentState == State.PAUSED) {
+			return;
+		}
+		
 	    if (!isGeneratingWorld && currentState == State.PLAYING) {
 
 	        // 1. Core Animations & Effect Updates (Explosions and Floating Text)
@@ -338,6 +346,10 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        case PLAYING:
 	            drawGamePlay(g2d);
 	            break;
+	        case PAUSED:
+				drawGamePlay(g2d);
+				drawPauseMenu(g2d);
+				break;
 	        case GAME_OVER:
 	            drawEndScreen(g2d);
 	            break;
@@ -428,14 +440,32 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				g2d.drawString(String.format("P%d Power: %.1f", (i + 1), t.getPower()), t.getX() - 40, t.getY() - 20);
 			}
 		}
+	}
+	
+	private void drawPauseMenu(Graphics2D g2d) {
+		// Add a semi-transparent overlay to dim the screen
+		g2d.setColor(new Color(0, 0, 0, 160));
+		g2d.fillRect(0, 0, WIDTH, HEIGHT);
 
-		/*
-		 * // --- EVALUATE END-GAME STATES --- if (!player1.isAlive() ||
-		 * !player2.isAlive()) { currentState = State.GAME_OVER;
-		 * SoundEngine.stopMusic();
-		 * SoundEngine.startMusic(MusicTracksList.VICTORY_THEME); return; // Halt
-		 * rendering remaining HUD components }
-		 */
+		// Render Title
+		g2d.setFont(new Font("Arial", Font.BOLD, 36));
+		g2d.setColor(Color.YELLOW);
+		g2d.drawString("GAME PAUSED", WIDTH / 2 - 120, HEIGHT / 2 - 80);
+
+		// Options settings
+		g2d.setFont(new Font("Arial", Font.PLAIN, 24));
+		
+		// Draw Options Vertically
+		String[] options = {"Settings", "Exit Battle"};
+		for (int i = 0; i < options.length; i++) {
+			if (i == selectedPauseOption) {
+				g2d.setColor(Color.CYAN);
+				g2d.drawString("> " + options[i] + " <", WIDTH / 2 - 70, HEIGHT / 2 - 10 + (i * 45));
+			} else {
+				g2d.setColor(Color.WHITE);
+				g2d.drawString(options[i], WIDTH / 2 - 45, HEIGHT / 2 - 10 + (i * 45));
+			}
+		}
 	}
 
 	private void drawEndScreen(Graphics2D g2d) {
@@ -533,13 +563,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		}
 		
 		// Playing commands
-		if (currentState == State.PLAYING) {
+		else if (currentState == State.PLAYING) {
 			
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 				SoundEngine.stopMusic();
-				currentState = State.MAIN_MENU;
-				SoundEngine.startMusic(MusicTracksList.MENU_THEME);
+				selectedPauseOption = 0;
+				currentState = State.PAUSED;
 			}
 			
 			// SPACE key
@@ -568,8 +598,41 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			}
 		}
 		
+		// Pause Menu Commands
+		else if (currentState == State.PAUSED) {
+
+			// ESCAPE key
+			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+				SoundEngine.startMusic(MusicTracksList.DESERT_THEME);
+				currentState = State.PLAYING;
+			}
+
+			// UP Key
+			if (e.getKeyCode() == KeyEvent.VK_UP) {
+				selectedPauseOption = 0;
+			}
+
+			// DOWN Key
+			if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+				selectedPauseOption = 1;
+			}
+
+			// ENTER Key
+			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+				if (selectedPauseOption == 0) {
+					// Placeholder for Settings menu actions
+					System.out.println("Settings Screen Selected");
+				} else if (selectedPauseOption == 1) {
+					// Exit battle back to Main Menu
+					SoundEngine.stopMusic();
+					currentState = State.MAIN_MENU;
+					SoundEngine.startMusic(MusicTracksList.MENU_THEME);
+				}
+			}
+		}
+		
 		// Game over commands
-		if (currentState == State.GAME_OVER) {
+		else if (currentState == State.GAME_OVER) {
 			
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
