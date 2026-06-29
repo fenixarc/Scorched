@@ -4,23 +4,24 @@ import java.util.Random;
 
 public class Terrain {
 
-	private int[] heightMap;
+	private boolean[][] solidGrid;
 	private int screenWidth;
 	private int screenHeight;
 	private Color dirtColor;
 
+	private static final int GRAVITY = 4;
+
 	public Terrain(int screenWidth, int screenHeight, Color dirtColor) {
 		this.screenWidth = screenWidth;
 		this.screenHeight = screenHeight;
-		this.heightMap = new int[screenWidth];
+		this.solidGrid = new boolean[screenWidth][screenHeight];
 		this.dirtColor = dirtColor;
 
 		generateTerrain();
 	}
 
 	/**
-	 * Generates a randomized set of rolling hills using random wave
-	 * offsets and heights.
+	 * Generates a randomized set of rolling hills and fills the 2D grid.
 	 */
 	private void generateTerrain() {
 		Random rand = new Random();
@@ -43,81 +44,121 @@ public class Terrain {
 		for (int x = 0; x < screenWidth; x++) {
 			// Large rolling peaks
 			double wave1 = Math.sin((x + offset1) * 0.002) * amp1;
-
 			// Secondary hills
 			double wave2 = Math.sin((x + offset2) * 0.01) * amp2;
-
 			// Jagged terrain texture
 			double wave3 = Math.cos((x + offset3) * 0.03) * amp3;
 
 			// Combine calculations into the column height index
-			heightMap[x] = (int) (baselineY - (wave1 + wave2 + wave3));
+			int surfaceY = (int) (baselineY - (wave1 + wave2 + wave3));
 
 			// Safety boundary protections
-			if (heightMap[x] >= screenHeight)
-				heightMap[x] = screenHeight - 1;
-			if (heightMap[x] < 150)
-				heightMap[x] = 150; // Don't let mountains reach all the way to the top UI
+			if (surfaceY >= screenHeight) surfaceY = screenHeight - 1;
+			if (surfaceY < 150) surfaceY = 150;
+
+			for (int y = surfaceY; y < screenHeight; y++) {
+				solidGrid[x][y] = true;
+			}
 		}
 	}
 
 	/**
-	 * Renders the terrain column by column from its top height down to the bottom
-	 * of the screen.
+	 * PER-FRAME UPDATE: Shifts floating dirt down by GRAVITY pixels.
+	 * @return true if terrain is still falling/settling, false if completely stable.
+	 */
+	public boolean update() {
+	    boolean terrainMoved = false;
+	    for (int x = 0; x < screenWidth; x++) {
+	        for (int y = screenHeight - 1 - GRAVITY; y >= 0; y--) {
+	            if (solidGrid[x][y]) {
+	                // Find how far we can fall, up to GRAVITY pixels
+	                int fallDistance = 0;
+	                for (int d = 1; d <= GRAVITY; d++) {
+	                    if (!solidGrid[x][y + d]) {
+	                        fallDistance = d;
+	                    } else {
+	                        break;
+	                    }
+	                }
+	                if (fallDistance > 0) {
+	                    solidGrid[x][y + fallDistance] = true;
+	                    solidGrid[x][y] = false;
+	                    terrainMoved = true; // Terrain is still collapsing
+	                }
+	            }
+	        }
+	    }
+	    return terrainMoved;
+	}
+
+	/**
+	 * Renders the terrain by drawing optimized vertical spans of dirt.
 	 */
 	public void draw(Graphics2D g2d) {
-		g2d.setColor(dirtColor);
-
 		for (int x = 0; x < screenWidth; x++) {
-			// Draw a vertical line from the top of the terrain to the bottom of the window
-			g2d.drawLine(x, heightMap[x], x, screenHeight);
-		}
+			int spanStart = -1;
 
-		// Add a green grass line right along the very top edge of the hills
-		g2d.setColor(Color.GREEN);
-		for (int x = 0; x < screenWidth; x++) {
-			g2d.fillRect(x, heightMap[x], 1, 4); // Draw a 4-pixel thick blade of grass
+			for (int y = 0; y < screenHeight; y++) {
+				if (solidGrid[x][y]) {
+					if (spanStart == -1) {
+						spanStart = y;
+						
+						// Green grass on top of any exposed upper layer
+						g2d.setColor(Color.GREEN);
+						g2d.fillRect(x, spanStart, 1, Math.min(4, screenHeight - spanStart));
+						g2d.setColor(dirtColor);
+					}
+				} else {
+					if (spanStart != -1) {
+						int drawStart = Math.min(spanStart + 4, screenHeight);
+						if (y > drawStart) {
+							g2d.drawLine(x, drawStart, x, y - 1);
+						}
+						spanStart = -1;
+					}
+				}
+			}
+			if (spanStart != -1) {
+				int drawStart = Math.min(spanStart + 4, screenHeight);
+				if (screenHeight - 1 >= drawStart) {
+					g2d.drawLine(x, drawStart, x, screenHeight - 1);
+				}
+			}
 		}
-	}
-
-	// Getter so tanks can read the terrain height to place themselves on top of it
-	public int getHeightAt(int x) {
-		if (x < 0)
-			return heightMap[0];
-		if (x >= screenWidth)
-			return heightMap[screenWidth - 1];
-		return heightMap[x];
 	}
 
 	/**
-	 * Modifies the heightmap to create a circular crater upon missile impact.
+	 * Scans down to find the highest solid ground level at column x.
+	 */
+	public int getHeightAt(int x) {
+		if (x < 0) x = 0;
+		if (x >= screenWidth) x = screenWidth - 1;
+
+		for (int y = 0; y < screenHeight; y++) {
+			if (solidGrid[x][y]) {
+				return y;
+			}
+		}
+		return screenHeight - 1;
+	}
+
+	/**
+	 * Destroys a circle of pixels. Gravity calculations are handled entirely 
+	 * by the update loop over subsequent frames.
 	 */
 	public void explode(int centerX, int centerY, int radius) {
-		// Determine bounds so we don't look outside the array bounds
 		int startX = Math.max(0, centerX - radius);
 		int endX = Math.min(screenWidth - 1, centerX + radius);
+		int startY = Math.max(0, centerY - radius);
+		int endY = Math.min(screenHeight - 1, centerY + radius);
 
 		for (int x = startX; x <= endX; x++) {
-			// Find the horizontal distance from center of impact
-			int dx = x - centerX;
-
-			// Calculate the depth of the circular cutout at this specific vertical column
-			// using the Pythagorean theorem
-			// Equation of circle: dx^2 + dy^2 = radius^2 -> dy = sqrt(radius^2 - dx^2)
-			double semiCircleY = Math.sqrt((radius * radius) - (dx * dx));
-
-			// The bottom absolute point of the explosion circle
-			int explosionBottomY = centerY + (int) semiCircleY;
-
-			// If the bottom boundary of the explosion penetrates deeper than current
-			// terrain surface, drop the earth down
-			if (explosionBottomY > heightMap[x]) {
-				// Drop ground level to the bottom edge of the explosion crater
-				heightMap[x] = explosionBottomY;
-
-				// Safety cap: Make sure it doesn't push the ground below screen layout limit
-				if (heightMap[x] >= screenHeight) {
-					heightMap[x] = screenHeight - 1;
+			for (int y = startY; y <= endY; y++) {
+				int dx = x - centerX;
+				int dy = y - centerY;
+				
+				if ((dx * dx) + (dy * dy) <= (radius * radius)) {
+					solidGrid[x][y] = false; 
 				}
 			}
 		}
