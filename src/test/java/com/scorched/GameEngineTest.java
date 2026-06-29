@@ -3,10 +3,10 @@ package com.scorched;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.awt.event.KeyEvent;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -86,6 +86,110 @@ class GameEngineTest {
     }
 
     @Test
+    @DisplayName("Gameplay: Escape key pauses and unpauses the game fluidly")
+    void testPauseStateToggle() throws Exception {
+        Field stateField = GameEngine.class.getDeclaredField("currentState");
+        stateField.setAccessible(true);
+
+        Field pauseOptionField = GameEngine.class.getDeclaredField("selectedPauseOption");
+        pauseOptionField.setAccessible(true);
+
+        // Force transition from Main Menu -> Playing
+        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(enterEvent);
+        assertEquals("PLAYING", stateField.get(gameEngine).toString());
+
+        // Press Escape -> Should move to PAUSED state and reset selection to 0
+        KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(escapeEvent);
+        
+        assertEquals("PAUSED", stateField.get(gameEngine).toString(), "Pressing Escape during game should switch state to PAUSED");
+        assertEquals(0, pauseOptionField.get(gameEngine), "Entering pause menu should reset selected index to 0 (Settings)");
+
+        // Press Escape again -> Should return cleanly to PLAYING state
+        gameEngine.keyPressed(escapeEvent);
+        assertEquals("PLAYING", stateField.get(gameEngine).toString(), "Pressing Escape while paused should resume back to PLAYING");
+    }
+
+    @Test
+    @DisplayName("Pause Menu: UP/DOWN arrow keys correctly toggle selected menu item index")
+    void testPauseMenuNavigation() throws Exception {
+        Field stateField = GameEngine.class.getDeclaredField("currentState");
+        stateField.setAccessible(true);
+        
+        Field pauseOptionField = GameEngine.class.getDeclaredField("selectedPauseOption");
+        pauseOptionField.setAccessible(true);
+
+        // Advance to PAUSED state manually
+        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(enterEvent);
+        KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(escapeEvent);
+
+        // Test Down selection -> shifts to index 1 (Exit Battle)
+        KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(downEvent);
+        assertEquals(1, pauseOptionField.get(gameEngine), "DOWN arrow key should select index 1 (Exit Battle)");
+
+        // Test Up selection -> shifts back to index 0 (Settings)
+        KeyEvent upEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_UP, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(upEvent);
+        assertEquals(0, pauseOptionField.get(gameEngine), "UP arrow key should navigate back to index 0 (Settings)");
+    }
+
+    @Test
+    @DisplayName("Pause Menu: Confirming 'Exit Battle' returns engine cleanly back to MAIN_MENU")
+    void testPauseMenuExitAction() throws Exception {
+        Field stateField = GameEngine.class.getDeclaredField("currentState");
+        stateField.setAccessible(true);
+
+        // Advance to PAUSED state manually
+        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(enterEvent);
+        KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(escapeEvent);
+
+        // Navigate down to highlight 'Exit Battle' (Index 1)
+        KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(downEvent);
+
+        // Press ENTER to confirm choice
+        gameEngine.keyPressed(enterEvent);
+        assertEquals("MAIN_MENU", stateField.get(gameEngine).toString(), "Confirming 'Exit Battle' must return engine to MAIN_MENU state");
+    }
+
+    @Test
+    @DisplayName("Pause State: Physics updates and frame loops short-circuit when frozen")
+    void testUpdateIsFrozenWhenPaused() throws Exception {
+        Field stateField = GameEngine.class.getDeclaredField("currentState");
+        stateField.setAccessible(true);
+
+        // Advance to PAUSED state manually
+        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(enterEvent);
+        KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(escapeEvent);
+
+        // Inject trackable floating text entity
+        Field textListField = GameEngine.class.getDeclaredField("floatingTexts");
+        textListField.setAccessible(true);
+        textListField.set(gameEngine, new ArrayList<FloatingText>());
+        gameEngine.spawnDamageText(100, 100, 50);
+
+        List<?> textListBefore = new ArrayList<>((List<?>) textListField.get(gameEngine));
+        assertFalse(textListBefore.isEmpty());
+
+        // Invoke private method update() while state is PAUSED
+        Method updateMethod = GameEngine.class.getDeclaredMethod("update");
+        updateMethod.setAccessible(true);
+        updateMethod.invoke(gameEngine);
+
+        // Verify tracking array remained unchanged (short-circuited before calculating visual text lifetimes)
+        List<?> textListAfter = (List<?>) textListField.get(gameEngine);
+        assertEquals(textListBefore.size(), textListAfter.size(), "Update loop should early-exit and not update object lifecycles when paused");
+    }
+
+    @Test
     @DisplayName("Switch Turn skips dead tanks and cycles correctly")
     void testSwitchTurnLogic() throws Exception {
         // Set up custom player list via reflection to isolate testing turn mechanics
@@ -114,7 +218,7 @@ class GameEngineTest {
         activeIndexField.set(gameEngine, 0);
 
         // Invoke private method switchTurn using reflection
-        java.lang.reflect.Method switchTurnMethod = GameEngine.class.getDeclaredMethod("switchTurn");
+        Method switchTurnMethod = GameEngine.class.getDeclaredMethod("switchTurn");
         switchTurnMethod.setAccessible(true);
         switchTurnMethod.invoke(gameEngine);
 
