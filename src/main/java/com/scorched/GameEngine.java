@@ -115,10 +115,12 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	    
 	    // Array of music tracks for in game
 	    MusicTrack[] battleTracks = {
-	        MusicTracksList.DESERT_THEME,
-	        MusicTracksList.NEON_THEME,
+	        MusicTracksList.DESERT_WASTELAND,
+	        MusicTracksList.NEON_CITADEL,
 	        MusicTracksList.GALACTIC_DROP,
-	        MusicTracksList.APEX_PREDATOR	    };
+	        MusicTracksList.APEX_PREDATOR,
+	        MusicTracksList.HELL_DIVER
+        };
 	    
 	    // Select and store the music track
 	    currentBattleTrack = battleTracks[rand.nextInt(battleTracks.length)];
