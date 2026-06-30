@@ -63,6 +63,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private int selectedPlayerCount;
 	private int activePlayerIndex;
 	private boolean lockControls;
+	private boolean isShotFired;
 	private List<TurretDebris> activeDebris;
 
 	// Tracks which keys are currently being held down physically
@@ -150,6 +151,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	    floatingTexts = new ArrayList<>();
 		activePlayerIndex = 0;
 		lockControls = false;
+		isShotFired = false;
 		activeDebris = new ArrayList<>();
 		
 		System.out.println("Starting new game: \n"
@@ -200,7 +202,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		
 	    if (!isGeneratingWorld && currentState == State.PLAYING) {
 
-	        // 1. Core Animations & Effect Updates (Explosions and Floating Text)
+	        // 1. Visual Effects (run independently of other phases)
 	        for (int i = activeDebris.size() - 1; i >= 0; i--) {
 	            TurretDebris d = activeDebris.get(i);
 	            d.update(terrain, WIDTH, HEIGHT);
@@ -218,15 +220,12 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	            if (!ft.update()) floatingTexts.remove(i);
 	        }
 
-	        // 2. Track Phase Flags
 	        boolean projectileInAir = (activeProjectile != null && activeProjectile.isActive());
-	        boolean explosionsRunning = !activeExplosions.isEmpty();
-	        boolean terrainFalling = false;
-	        boolean tanksMoving = false;
 
-	        // 3. Sequential Physics Execution
+	        // 2. Fire projectiles
 	        if (projectileInAir) {
 	            // PHASE A: Projectile is flying
+	        	isShotFired = true;
 	            activeProjectile.update(terrain, players, WIDTH, HEIGHT);
 
 	            if (!activeProjectile.isActive()) {
@@ -252,23 +251,48 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	                }
 	            }
 	        } 
-	        else if (explosionsRunning) {
-	            // PHASE B: Projectile is done, wait for explosion animations to wrap up
-	            // (Terrain is held in place during the blast sparkle)
-	        } 
 	        else {
-	            // PHASE C: Projectiles and explosions are finished. Now run terrain physics.
-	            terrainFalling = terrain.update();
-
-	            if (!terrainFalling) {
-	                // PHASE D: Terrain has completely finished collapsing. Now apply tank gravity.
-	                for (Tank t : players) {
-	                    if (t.applyGravity(terrain)) {
-	                        tanksMoving = true; 
-	                    }
-	                }
+	        	// PHASE B: Projectile is done, wait for explosion animations to wrap up
+	        	boolean explosionsRunning = !activeExplosions.isEmpty();
+	            
+	        	if (explosionsRunning) {
+	                // Wait
 	            }
-	        }
+	        	else {
+		            // PHASE C: Projectiles and explosions are finished. Run terrain physics.
+	        		boolean terrainFalling = terrain.update();
+
+		            if (!terrainFalling) {
+		                // PHASE D: Terrain has finished collapsing. Apply tank gravity.
+		            	boolean tanksMoving = false;
+		                for (Tank t : players) {
+		                    if (t.applyGravity(terrain)) {
+		                        tanksMoving = true; 
+		                    }
+		                }
+		                
+		    	        // PHASE E: Tanks are stable. Turn Management and Round-End Processing
+		    	        if (lockControls && isShotFired && !tanksMoving) {
+		    	            activeProjectile = null;
+
+		    	            int survivorsCount = 0;
+		    	            for (Tank t : players) {
+		    	                if (t.isAlive()) survivorsCount++;
+		    	            }
+
+		    	            if (survivorsCount <= 1) {
+		    	                SoundEngine.stopMusic();
+		    	                SoundEngine.startMusic(MusicTracksList.VICTORY_THEME);
+		    	                currentState = State.GAME_OVER;
+		    	            } else {
+		    	                switchTurn();
+		    	                lockControls = false;
+		    	                isShotFired = false;
+		    	            }
+		    	        }
+		            }
+		        }
+	        } 
 
 	        if (!lockControls && activePlayerIndex < players.size()) {
 	            Tank activeTank = players.get(activePlayerIndex);
@@ -283,27 +307,6 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	                }
 	                if (keys[KeyEvent.VK_UP])    activeTank.changePower(0.15);
 	                if (keys[KeyEvent.VK_DOWN])  activeTank.changePower(-0.15);
-	            }
-	        }
-
-	        // 5. Turn Management and Round-End Processing
-	        // Turn switches only when everything has completely settled down
-	        if (!projectileInAir && !explosionsRunning && !terrainFalling && !tanksMoving && lockControls) {
-	            
-	            activeProjectile = null;
-
-	            int survivorsCount = 0;
-	            for (Tank t : players) {
-	                if (t.isAlive()) survivorsCount++;
-	            }
-
-	            if (survivorsCount <= 1) {
-	                SoundEngine.stopMusic();
-	                SoundEngine.startMusic(MusicTracksList.VICTORY_THEME);
-	                currentState = State.GAME_OVER;
-	            } else {
-	                switchTurn();
-	                lockControls = false; // Safely release controls for the next turn
 	            }
 	        }
 	    }
