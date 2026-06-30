@@ -65,6 +65,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private boolean lockControls;
 	private boolean isShotFired;
 	private List<TurretDebris> activeDebris;
+	private MusicTrack currentBattleTrack;
 
 	// Tracks which keys are currently being held down physically
 	private boolean[] keys = new boolean[256];
@@ -111,6 +112,18 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 		// Initialize our terrain and dirt color
 	    terrain = new Terrain(WIDTH, HEIGHT, activeEnv.dirt);
+	    
+	    // Array of music tracks for in game
+	    MusicTrack[] battleTracks = {
+	        MusicTracksList.DESERT_THEME,
+	        MusicTracksList.NEON_THEME,
+	        MusicTracksList.GALACTIC_DROP,
+	        MusicTracksList.APEX_PREDATOR	    };
+	    
+	    // Select and store the music track
+	    currentBattleTrack = battleTracks[rand.nextInt(battleTracks.length)];
+	    SoundEngine.stopMusic();
+	    SoundEngine.startMusic(currentBattleTrack);
 
 		// Initialize players
 		players = new ArrayList<>();
@@ -564,9 +577,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// ENTER Key
 			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 				SoundEngine.playMenuConfirmSound();
-				SoundEngine.stopMusic();
 				currentState = State.PLAYING;
-				SoundEngine.startMusic(MusicTracksList.DESERT_THEME);
 				startNewGame();
 			}
 			
@@ -613,7 +624,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-				SoundEngine.startMusic(MusicTracksList.DESERT_THEME);
+				SoundEngine.startMusic(currentBattleTrack);
 				currentState = State.PLAYING;
 			}
 

@@ -23,8 +23,22 @@ public class MusicTracksList {
 	private static final int[] NEON_DRUMS = { 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1 };
 	public static final MusicTrack NEON_THEME = new MusicTrack("Neon Citadel", NEON_BASS, NEON_MELODY, NEON_DRUMS, 140,
 			3, 5);
+	
+	// --- Galactic Drop ---
+	private static final double[] GALACTIC_BASS = { 87.31, 87.31, 87.31, 98.00, 110.00, 110.00, 110.00, 73.42 };
+	private static final double[] GALACTIC_MELODY = { 349.23, 0.0, 349.23, 392.00, 440.00, 0.0, 440.00, 523.25, 493.88, 440.00, 392.00, 349.23 };
+	private static final int[] GALACTIC_DRUMS = { 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1 };
+	public static final MusicTrack GALACTIC_DROP = new MusicTrack("Galactic Drop", GALACTIC_BASS, GALACTIC_MELODY,
+			GALACTIC_DRUMS, 130, 2, 4);
 
-	// --- Victory Fanfare ---
+	// --- Apex Predator ---
+	private static final double[] APEX_BASS = { 55.00, 55.00, 65.41, 73.42, 55.00, 55.00, 87.31, 82.41 };
+	private static final double[] APEX_MELODY = { 220.00, 220.00, 261.63, 293.66, 329.63, 0.0, 349.23, 329.63, 293.66, 261.63, 220.00, 0.0 };
+	private static final int[] APEX_DRUMS = { 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1 };
+	public static final MusicTrack APEX_PREDATOR = new MusicTrack("Apex Predator", APEX_BASS, APEX_MELODY,
+			APEX_DRUMS, 110, 1, 1);
+
+	// --- Victory Fanfare (Game Over) ---
 	private static final double[] VICTORY_BASS = { 130.81, 130.81, 146.83, 164.81, 174.61, 196.00, 196.00, 130.81 };
 	private static final double[] VICTORY_MELODY = { 523.25, 0.0, 659.25, 0.0, 783.99, 659.25, 523.25, 0.0, 587.33,
 			698.46, 783.99, 880.00, 987.77, 0.0, 1046.50, 0.0 };
