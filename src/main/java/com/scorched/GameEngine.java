@@ -1,5 +1,9 @@
 package com.scorched;
 import javax.swing.JPanel;
+
+import com.weapons.HERound;
+import com.weapons.MiniNuke;
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -684,7 +688,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 					int startY = (int) (currentTank.getY() - Math.sin(rads) * 20);
 
 					activeProjectile = new Projectile(startX, startY, currentTank.getBarrelAngle(),
-							currentTank.getPower());
+							currentTank.getPower(), new HERound());
 					SoundEngine.playFireSound();
 					lockControls = true;
 				}
