@@ -1,4 +1,5 @@
 package com.scorched;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.awt.Color;
@@ -11,23 +12,27 @@ public class TerrainTest {
     private final int WIDTH = 100;
     private final int HEIGHT = 400;
     private final Color DIRT_COLOR = new Color(139, 69, 19); // Brown
+    private final int STANDARD_HILL_STRENGTH = 1;
 
     @BeforeEach
     public void setUp() {
-        // Initialize a standard terrain instance before each test
-        terrain = new Terrain(WIDTH, HEIGHT, DIRT_COLOR);
+        // Updated to include the hillStrength parameter required by the constructor
+        terrain = new Terrain(WIDTH, HEIGHT, DIRT_COLOR, STANDARD_HILL_STRENGTH);
     }
 
     @Test
     public void testTerrainGenerationBoundaries() {
-        // Verify that the generated terrain respects the hardcoded limits in generateTerrain()
+        // Verify that the generated terrain respects the new hardcoded limits in generateTerrain()
+        // minY = 60, maxY = screenHeight - 40 (400 - 40 = 360)
+        int minY = 60;
+        int maxY = HEIGHT - 40;
+
         for (int x = 0; x < WIDTH; x++) {
             int surfaceY = terrain.getHeightAt(x);
             
-            // The code enforces a minimum height of 150
-            assertTrue(surfaceY >= 150, "Terrain surface should not be higher than Y=150");
-            // The code enforces a maximum height within the screen bounds
-            assertTrue(surfaceY < HEIGHT, "Terrain surface should be within the screen height");
+            // Updated to match the new reflection bounds and Math.clamp safety checks
+            assertTrue(surfaceY >= minY, "Terrain surface should not be higher than Y=" + minY);
+            assertTrue(surfaceY <= maxY, "Terrain surface should not be lower than Y=" + maxY);
         }
     }
 
@@ -92,5 +97,12 @@ public class TerrainTest {
 
         // 4. Now that it is stable, calling update() again must return false
         assertFalse(terrain.update(), "Stable terrain should return false on update");
+    }
+
+    @Test
+    public void testDifferentHillStrengthsDoNotCrash() {
+        // Extra test case to verify that higher tier hill strengths do not throw exceptions
+        assertDoesNotThrow(() -> new Terrain(WIDTH, HEIGHT, DIRT_COLOR, 2));
+        assertDoesNotThrow(() -> new Terrain(WIDTH, HEIGHT, DIRT_COLOR, 3));
     }
 }

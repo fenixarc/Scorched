@@ -110,8 +110,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	    this.skyColor = activeEnv.sky;
 	    this.setBackground(skyColor);
 
-		// Initialize our terrain and dirt color
-	    terrain = new Terrain(WIDTH, HEIGHT, activeEnv.dirt);
+		// Initialize terrain, dirt color, and randomize hill strength
+	    int hillStrength = rand.nextInt(2)+1;
+	    terrain = new Terrain(WIDTH, HEIGHT, activeEnv.dirt, hillStrength);
 	    
 	    // Array of music tracks for in game
 	    MusicTrack[] battleTracks = {
