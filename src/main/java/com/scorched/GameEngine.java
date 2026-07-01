@@ -3,6 +3,7 @@ import javax.swing.JPanel;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
@@ -38,6 +39,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	// Main Menu
 	private BufferedImage splashImage;
+	private String[] hillOptions = {"Random", "Rolling Hills", "Large Hills", "Jagged Cliffs"};
+	private int selectedHillIndex;
+	private int selectedMenuOption;
 
 	// Variable to hold the current round's background color
 	private Color skyColor;
@@ -82,6 +86,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		this.setFocusable(true);
 		this.addKeyListener(this);
 		selectedPlayerCount = 2;
+		selectedHillIndex = 0; // Defaults to "Random"
+	    selectedMenuOption = 0; // Set Main Menu default selection
 
 		// Load the splash image safely
 		try {
@@ -111,8 +117,15 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	    this.setBackground(skyColor);
 
 		// Initialize terrain, dirt color, and randomize hill strength
-	    int hillStrength = rand.nextInt(2)+1;
+	    int hillStrength;
+	    if (selectedHillIndex == 0)
+	    	hillStrength = rand.nextInt(2) + 1;
+	    else
+	    	hillStrength = selectedHillIndex;
 	    terrain = new Terrain(WIDTH, HEIGHT, activeEnv.dirt, hillStrength);
+	    
+	    // Set Main Menu default selection
+	    selectedMenuOption = 0;
 	    
 	    // Array of music tracks for in game
 	    MusicTrack[] battleTracks = {
@@ -174,7 +187,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				+ "activeEnv: " + activeEnv + "\n"
 				+ "selectedPlayerCount: " + selectedPlayerCount + "\n"
 				+ "sectors: " + sectors.size() + "\n"
-				+ "sectorWidth: " + sectorWidth);
+				+ "sectorWidth: " + sectorWidth + "\n"
+				+ "hillStrength: " + hillStrength);
 		
 		isGeneratingWorld = false;
 	}
@@ -382,35 +396,74 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 		g2d.dispose();
 	}
+	
+	private void drawCenteredString(Graphics2D g2d, String text, int y) {
+	    FontMetrics fm = g2d.getFontMetrics();
+	    int x = (WIDTH - fm.stringWidth(text)) / 2;
+	    g2d.drawString(text, x, y);
+	}
 
 	private void drawMainMenu(Graphics2D g2d) {
-		if (splashImage != null) {
-			// Draw image stretched to fit the window dimensions
-			g2d.drawImage(splashImage, 0, 0, WIDTH, HEIGHT, null);
-		} else {
-			// Fallback text if your image fails to load
-			g2d.setColor(Color.WHITE);
-			g2d.drawString("SCORCHED", WIDTH / 2 - 50, HEIGHT / 2);
-		}
-		
-		g2d.setFont(new Font("Arial", Font.PLAIN, 18));
-	    g2d.setColor(Color.LIGHT_GRAY);
-	    g2d.drawString("Use UP / DOWN Arrow Keys to Change Configuration", WIDTH / 2 - 210, HEIGHT / 2 - 40);
+	    if (splashImage != null) {
+	        // Draw image stretched to fit the window dimensions
+	        g2d.drawImage(splashImage, 0, 0, WIDTH, HEIGHT, null);
+	    } else {
+	        // Fallback text if your image fails to load
+	        g2d.setColor(Color.WHITE);
+	        drawCenteredString(g2d, "SCORCHED", HEIGHT / 2);
+	    }
+	    
+	    g2d.setFont(new Font("Arial", Font.BOLD, 18));
+	    g2d.setColor(Color.BLUE);
+	    drawCenteredString(g2d, "UP / DOWN ARROWS CHANGE SELECTION", HEIGHT / 2 - 80);
+	    drawCenteredString(g2d, "RIGHT / LEFT ARROWS CHANGE SETTING", HEIGHT / 2 - 60);
 
-	    // Draw selection box panel container
+	    // ==========================================
+	    // BOX 1: PLAYERS SELECTION
+	    // ==========================================
 	    g2d.setColor(new Color(25, 30, 55));
 	    g2d.fillRect(WIDTH / 2 - 150, HEIGHT / 2 - 15, 300, 60);
-	    g2d.setColor(Color.CYAN);
+	    // Highlight if selected
+	    if (selectedMenuOption == 0)
+	    	g2d.setColor(Color.YELLOW);
+	    else
+	    	g2d.setColor(Color.CYAN);
 	    g2d.drawRect(WIDTH / 2 - 150, HEIGHT / 2 - 15, 300, 60);
 
-	    // Highlight the selection variable readout
 	    g2d.setFont(new Font("Arial", Font.BOLD, 24));
 	    g2d.setColor(Color.WHITE);
 	    g2d.drawString("PLAYERS: " + selectedPlayerCount, WIDTH / 2 - 65, HEIGHT / 2 + 23);
 
-	    g2d.setFont(new Font("Courier New", Font.ITALIC, 16));
-		g2d.setColor(Color.YELLOW);
-		g2d.drawString("PRESS ENTER TO START GAME", WIDTH / 2 - 120, HEIGHT - 50);
+	    // ==========================================
+	    // BOX 2: HILL STRENGTH SELECTION
+	    // ==========================================
+	    // Shifted down by 80 pixels (60px box height + 20px gap)
+	    int box2Y = HEIGHT / 2 - 15 + 80; 
+
+	    g2d.setColor(new Color(25, 30, 55));
+	    g2d.fillRect(WIDTH / 2 - 150, box2Y, 300, 60);
+	    // Highlight if selected
+	    if (selectedMenuOption == 1)
+	    	g2d.setColor(Color.YELLOW);
+	    else
+	    	g2d.setColor(Color.CYAN);
+	    g2d.drawRect(WIDTH / 2 - 150, box2Y, 300, 60);
+
+	    // Draw the text dynamically from array
+	    g2d.setFont(new Font("Arial", Font.BOLD, 20));
+	    g2d.setColor(Color.WHITE);
+	    String hillText = "HILLS: " + hillOptions[selectedHillIndex].toUpperCase();
+	    
+	    // Simple dynamic centering calculation for the text inside the box
+	    int textWidth = g2d.getFontMetrics().stringWidth(hillText);
+	    g2d.drawString(hillText, WIDTH / 2 - (textWidth / 2), box2Y + 37);
+
+	    // ==========================================
+	    // FOOTER
+	    // ==========================================
+	    g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+	    g2d.setColor(Color.YELLOW);
+	    drawCenteredString(g2d, "PRESS ENTER TO START GAME", HEIGHT - 50);
 	}
 
 	private void drawGamePlay(Graphics2D g2d) {
@@ -565,12 +618,28 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			
 			// UP key
 			if (keyCode == KeyEvent.VK_UP) {
-	            if (selectedPlayerCount < 10) selectedPlayerCount++;
+				SoundEngine.playMenuSelectSound();
+				selectedMenuOption = 0;
 	        }
 			
 			// DOWN key
 	        if (keyCode == KeyEvent.VK_DOWN) {
-	            if (selectedPlayerCount > 2) selectedPlayerCount--;
+	        	SoundEngine.playMenuSelectSound();
+	        	selectedMenuOption = 1;
+	        }
+	        
+	        // RIGHT key
+	        if (keyCode == KeyEvent.VK_RIGHT) {
+	        	SoundEngine.playMenuSelectSound();
+	            if (selectedMenuOption == 0 && selectedPlayerCount < 10) selectedPlayerCount++;
+	            else if (selectedMenuOption == 1 && selectedHillIndex < 3) selectedHillIndex++;
+	        }
+	        
+	        // LEFT key
+	        if (keyCode == KeyEvent.VK_LEFT) {
+	        	SoundEngine.playMenuSelectSound();
+	        	if (selectedMenuOption == 0 && selectedPlayerCount > 2) selectedPlayerCount--;
+	        	else if (selectedMenuOption == 1 && selectedHillIndex > 0) selectedHillIndex--;
 	        }
 			
 			// ESCPAE key
