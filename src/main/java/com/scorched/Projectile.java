@@ -3,22 +3,30 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.List;
 
+import com.weapons.AmmoType;
+
 public class Projectile {
 
 	private double x, y; // Projectile coordinates
 	private int impactX, impactY; // Projectile impact coordinates
 	private double vx, vy; // Velocity vectors along X and Y axes
 	private boolean active = true;
+	private AmmoType ammoType;
 
 	private final double GRAVITY = 0.15; // Downward acceleration per frame
-	private final int RADIUS = 4; // Visual size of the missile
-	private final int EXPLOSION_RADIUS = 40;
-	private final int DAMAGE = 60;
+	private final int RADIUS; // Visual size of the missile
+	private final int EXPLOSION_RADIUS;
+	private final int DAMAGE;
 
-	public Projectile(int startX, int startY, int angleDegrees, double power) {
+	public Projectile(int startX, int startY, int angleDegrees, double power, AmmoType ammoType) {
 		this.x = startX;
 		this.y = startY;
-
+		this.ammoType = ammoType;
+		
+		this.RADIUS = ammoType.getRadius();
+		this.EXPLOSION_RADIUS = ammoType.getExplosionRadius();
+		this.DAMAGE = ammoType.getDamage();
+		
 		// Convert firing angle to radians
 		double radians = Math.toRadians(angleDegrees);
 
