@@ -2,7 +2,6 @@ package scorched.game;
 import javax.swing.JPanel;
 
 import scorched.weapons.HERound;
-import scorched.weapons.MiniNuke;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -31,11 +30,11 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private final int FPS = 30;
 
 	// Game States
-	private enum State {
-		MAIN_MENU, PLAYING, PAUSED, GAME_OVER
+	enum GameState {
+		MAIN_MENU, PLAYING, PAUSED, GAME_OVER, BUYING
 	}
 
-	private State currentState = State.MAIN_MENU;
+	private GameState currentState = GameState.MAIN_MENU;
 	private volatile boolean isGeneratingWorld = false;
 	
 	// Pause Menu Selection (0 = Settings, 1 = Exit Battle)
@@ -169,11 +168,15 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// Pick a random X coordinate within bounds
 			int randomX = minX + rand.nextInt(maxX - minX + 1);
 
-			// Dynamically face cannon angle
+			// Set default cannon angle
 			int startingAngle = (randomX < WIDTH / 2) ? 45 : 135;
+			
+			// Temporarily make all other tanks AI
+			//int aiLevel = (i > 0) ? 1 : 0;
+			int aiLevel = 1;
 
 			// Add the tank
-			Tank newTank = new Tank(randomX, terrain, playerColors[i % playerColors.length], startingAngle);
+			Tank newTank = new Tank(randomX, terrain, playerColors[i % playerColors.length], startingAngle, i, aiLevel);
 			players.add(newTank);
 			newTank.setDamageListener(this);
 		}
@@ -230,11 +233,11 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	}
 
 	private void update() {
-		if (currentState == State.PAUSED) {
+		if (currentState == GameState.PAUSED) {
 			return;
 		}
 		
-	    if (!isGeneratingWorld && currentState == State.PLAYING) {
+	    if (!isGeneratingWorld && currentState == GameState.PLAYING) {
 
 	        // 1. Visual Effects (run independently of other phases)
 	        for (int i = activeDebris.size() - 1; i >= 0; i--) {
@@ -317,7 +320,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		    	            if (survivorsCount <= 1) {
 		    	                SoundEngine.stopMusic();
 		    	                SoundEngine.startMusic(MusicTracksList.VICTORY_THEME);
-		    	                currentState = State.GAME_OVER;
+		    	                currentState = GameState.GAME_OVER;
 		    	            } else {
 		    	                switchTurn();
 		    	                lockControls = false;
@@ -331,19 +334,36 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        if (!lockControls && activePlayerIndex < players.size()) {
 	            Tank activeTank = players.get(activePlayerIndex);
 	            if (activeTank.isAlive()) {
-	                if (keys[KeyEvent.VK_LEFT]) {
-	                	SoundEngine.playBarrelRotateSound();
-	                	activeTank.changeAngle(1);
+	            	if (activeTank.getAI() != null) {
+	            		activeTank.getAI().takeTurn(this.currentState, terrain, getActivePlayers());
+	            		executeTankFire(activeTank);
+	                } 
+	            	else {
+		                if (keys[KeyEvent.VK_LEFT]) {
+		                	SoundEngine.playBarrelRotateSound();
+		                	activeTank.changeAngle(1);
+		                }
+		                if (keys[KeyEvent.VK_RIGHT]) {
+		                	SoundEngine.playBarrelRotateSound();
+		                	activeTank.changeAngle(-1);
+		                }
+		                if (keys[KeyEvent.VK_UP])    activeTank.changePower(0.15);
+		                if (keys[KeyEvent.VK_DOWN])  activeTank.changePower(-0.15);
 	                }
-	                if (keys[KeyEvent.VK_RIGHT]) {
-	                	SoundEngine.playBarrelRotateSound();
-	                	activeTank.changeAngle(-1);
-	                }
-	                if (keys[KeyEvent.VK_UP])    activeTank.changePower(0.15);
-	                if (keys[KeyEvent.VK_DOWN])  activeTank.changePower(-0.15);
 	            }
 	        }
 	    }
+	}
+	
+	public void executeTankFire(Tank tank) {
+	    double rads = Math.toRadians(tank.getBarrelAngle());
+	    int startX = (int) (tank.getX() + Math.cos(rads) * 20);
+	    int startY = (int) (tank.getY() - Math.sin(rads) * 20);
+
+	    this.activeProjectile = new Projectile(startX, startY, tank.getBarrelAngle(),
+	            tank.getPower(), new HERound());
+	    SoundEngine.playFireSound();
+	    this.lockControls = true;
 	}
 	
 	/**
@@ -396,6 +416,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        case GAME_OVER:
 	            drawEndScreen(g2d);
 	            break;
+	        case BUYING:
+	        	// Placeholder
+	        	break;
     }
 
 		g2d.dispose();
@@ -618,7 +641,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		}
 		
 		// Main Menu commands
-		if (currentState == State.MAIN_MENU) {
+		if (currentState == GameState.MAIN_MENU) {
 			
 			// UP key
 			if (keyCode == KeyEvent.VK_UP) {
@@ -653,20 +676,20 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// ENTER Key
 			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 				SoundEngine.playMenuConfirmSound();
-				currentState = State.PLAYING;
+				currentState = GameState.PLAYING;
 				startNewGame();
 			}
 			
 		}
 		
 		// Playing commands
-		else if (currentState == State.PLAYING) {
+		else if (currentState == GameState.PLAYING) {
 			
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 				SoundEngine.stopMusic();
 				selectedPauseOption = 0;
-				currentState = State.PAUSED;
+				currentState = GameState.PAUSED;
 			}
 			
 			// SPACE key
@@ -696,12 +719,12 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		}
 		
 		// Pause Menu Commands
-		else if (currentState == State.PAUSED) {
+		else if (currentState == GameState.PAUSED) {
 
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 				SoundEngine.startMusic(currentBattleTrack);
-				currentState = State.PLAYING;
+				currentState = GameState.PLAYING;
 			}
 
 			// UP Key
@@ -726,19 +749,19 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 					// Exit battle back to Main Menu
 					SoundEngine.playMenuConfirmSound();
 					SoundEngine.stopMusic();
-					currentState = State.MAIN_MENU;
+					currentState = GameState.MAIN_MENU;
 					SoundEngine.startMusic(MusicTracksList.MENU_THEME);
 				}
 			}
 		}
 		
 		// Game over commands
-		else if (currentState == State.GAME_OVER) {
+		else if (currentState == GameState.GAME_OVER) {
 			
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 				SoundEngine.stopMusic();
-				currentState = State.MAIN_MENU;
+				currentState = GameState.MAIN_MENU;
 				SoundEngine.startMusic(MusicTracksList.MENU_THEME);
 			}
 		}
@@ -767,5 +790,17 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// Advance pointer line by 1, wrapping around array borders
 			activePlayerIndex = (activePlayerIndex + 1) % players.size();
 		} while (!players.get(activePlayerIndex).isAlive()); // Keep moving if the tank is dead
+	}
+	
+	/**
+	 * Passes back a list of Tanks that are still alive.
+	 */
+	private List<Tank> getActivePlayers() {
+		List<Tank> activePlayers = new ArrayList<Tank>();
+		for (Tank tank: players) {
+			if (tank.isAlive())
+				activePlayers.add(tank);
+		}
+		return activePlayers;
 	}
 }

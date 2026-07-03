@@ -15,6 +15,8 @@ public class Tank {
 	private static int GRAVITY = 4;
 	private int fallStartY = -1;
 	private DamageListener damageListener;
+	private int playerIndex;
+	private AI ai;
 
 	// Aiming properties (Angle in degrees: 0 is right, 90 is straight up, 180 is
 	// left)
@@ -22,11 +24,15 @@ public class Tank {
 	private int barrelLength = 20;
 	private double power = 10.0;
 
-	public Tank(int startX, Terrain terrain, Color color, int startingAngle) {
+	public Tank(int startX, Terrain terrain, Color color, int startingAngle, int playerIndex, int aiLevel) {
 		this.x = startX;
 		this.color = color;
 		this.barrelAngle = startingAngle;
-
+		this.playerIndex = playerIndex;
+		if (aiLevel > 0) {
+			ai = new AI(aiLevel, 0, this);
+		}
+		
 		// Snap the tank's bottom directly onto the ground surface
 		this.y = terrain.getHeightAt(this.x) - this.height;
 	}
@@ -78,7 +84,6 @@ public class Tank {
 					if (damageListener != null) {
 			            damageListener.onTankTakeDamage(this.x, this.y, fallDamage);
 			        }
-					System.out.println(this.color + " Tank sustained fall damage: " + fallDamage);
 				}
 			}
 		}
@@ -183,6 +188,7 @@ public class Tank {
 		if (!alive)
 			return;
 
+		System.out.println(this.playerIndex + " sustained damage: " + damage);
 		this.currentHealth -= damage;
 		
 		// Kill tank
@@ -190,6 +196,7 @@ public class Tank {
 			this.currentHealth = 0;
 			this.alive = false;
 			SoundEngine.playTankDeathSound();
+			System.out.println(this.playerIndex + " died");
 			
 			// Create destroyed turret and pass to listener
 			TurretDebris poppedTurret = new TurretDebris(this.x, this.y, this.barrelAngle);
@@ -235,4 +242,31 @@ public class Tank {
 	public void setDamageListener(DamageListener listener) {
 	    this.damageListener = listener;
 	}
+
+	public int getPlayerIndex() {
+		return playerIndex;
+	}
+
+	/**
+	 * Only used for AI Tanks.
+	 * @param barrelAngle
+	 */
+	
+	public void setBarrelAngle(int barrelAngle) {
+	    this.barrelAngle = Math.max(0, Math.min(180, barrelAngle));
+	}
+
+	/**
+	 * Only used for AI Tanks.
+	 * @param power
+	 */
+	
+	public void setPower(double power) {
+	    this.power = Math.max(1.0, Math.min(25.0, power));
+	}
+
+	public AI getAI() {
+		return ai;
+	}
+	
 }

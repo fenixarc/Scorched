@@ -3,6 +3,8 @@ package scorched.game;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,13 +18,12 @@ public class TerrainTest {
 
     @BeforeEach
     public void setUp() {
-        // Updated to include the hillStrength parameter required by the constructor
         terrain = new Terrain(WIDTH, HEIGHT, DIRT_COLOR, STANDARD_HILL_STRENGTH);
     }
 
     @Test
     public void testTerrainGenerationBoundaries() {
-        // Verify that the generated terrain respects the new hardcoded limits in generateTerrain()
+        // Verify that the generated terrain respects the hardcoded limits in generateTerrain()
         // minY = 60, maxY = screenHeight - 40 (400 - 40 = 360)
         int minY = 60;
         int maxY = HEIGHT - 40;
@@ -30,7 +31,6 @@ public class TerrainTest {
         for (int x = 0; x < WIDTH; x++) {
             int surfaceY = terrain.getHeightAt(x);
             
-            // Updated to match the new reflection bounds and Math.clamp safety checks
             assertTrue(surfaceY >= minY, "Terrain surface should not be higher than Y=" + minY);
             assertTrue(surfaceY <= maxY, "Terrain surface should not be lower than Y=" + maxY);
         }
@@ -52,7 +52,6 @@ public class TerrainTest {
     @Test
     public void testExplodeRemovesTerrain() {
         int targetX = 50;
-        // Find the natural surface height at this column
         int surfaceY = terrain.getHeightAt(targetX);
         
         // Target an explosion right on the surface to clear a chunk out
@@ -78,7 +77,6 @@ public class TerrainTest {
         int radius = 15;
 
         // 1. Create a cave/floating shelf by exploding a circle completely below the surface
-        // This leaves a "ceiling" of dirt hanging in the air
         int explosionCenterY = surfaceY + radius + 10; 
         terrain.explode(targetX, explosionCenterY, radius);
 
@@ -101,8 +99,36 @@ public class TerrainTest {
 
     @Test
     public void testDifferentHillStrengthsDoNotCrash() {
-        // Extra test case to verify that higher tier hill strengths do not throw exceptions
+        // Verify that higher tier hill strengths generate completely fine without exceptions
         assertDoesNotThrow(() -> new Terrain(WIDTH, HEIGHT, DIRT_COLOR, 2));
         assertDoesNotThrow(() -> new Terrain(WIDTH, HEIGHT, DIRT_COLOR, 3));
+    }
+
+    @Test
+    public void testIsSolidAt() {
+        int targetX = 50;
+        int surfaceY = terrain.getHeightAt(targetX);
+
+        // Anything above the surface line should NOT be solid (air)
+        assertFalse(terrain.isSolidAt(targetX, surfaceY - 5), "Coordinates above surface line should not be solid");
+
+        // The exact surface point and below should be solid (ground)
+        assertTrue(terrain.isSolidAt(targetX, surfaceY), "Surface coordinate should be solid");
+        assertTrue(terrain.isSolidAt(targetX, HEIGHT - 1), "Bottom of the map should be solid");
+    }
+
+    @Test
+    public void testGetScreenWidth() {
+        assertEquals(WIDTH, terrain.getScreenWidth(), "getScreenWidth should return the exact width passed to constructor");
+    }
+
+    @Test
+    public void testDrawDoesNotCrash() {
+        // Create a headless Graphics2D context using a BufferedImage to verify rendering execution
+        BufferedImage img = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = img.createGraphics();
+
+        assertDoesNotThrow(() -> terrain.draw(g2d), "Terrain drawing logic should execute without exceptions");
+        g2d.dispose();
     }
 }

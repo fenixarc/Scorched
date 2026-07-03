@@ -14,6 +14,7 @@ class TankTest {
     private Terrain mockTerrain;
     private DamageListener mockDamageListener;
     private final Color tankColor = Color.GREEN;
+    private final int playerIndex = 1;
 
     @BeforeEach
     void setUp() {
@@ -25,57 +26,101 @@ class TankTest {
     }
 
     @Test
-    void testConstructorSnapsToTerrain() {
+    void testConstructorSnapsToTerrainAndInitializesAI() {
         // Tank height is 14. Terrain is 200. Expected Y = 200 - 14 = 186
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90);
+        // Passing aiLevel = 1 to verify AI initialization
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 1);
 
         assertEquals(100, tank.getX());
         assertEquals(186, tank.getY());
         assertEquals(90, tank.getBarrelAngle());
         assertEquals(tankColor, tank.getColor());
+        assertEquals(playerIndex, tank.getPlayerIndex());
         assertTrue(tank.isAlive());
         assertEquals(100, tank.getHealth());
+        assertNotNull(tank.getAI());
+    }
+
+    @Test
+    void testConstructorWithoutAI() {
+        // Passing aiLevel = 0 should leave AI as null
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        assertNull(tank.getAI());
     }
 
     @Test
     void testChangeAngleClamping() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90);
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
 
-        // Test normal adjustments
-        tank.changeAngle(45);
-        assertEquals(135, tank.getBarrelAngle());
+        try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
+            // Test normal adjustments
+            tank.changeAngle(45);
+            assertEquals(135, tank.getBarrelAngle());
+            mockedSoundEngine.verify(SoundEngine::playBarrelRotateSound, times(1));
 
-        // Test upper clamping (max 180)
-        tank.changeAngle(100);
+            // Test upper clamping (max 180)
+            tank.changeAngle(100);
+            assertEquals(180, tank.getBarrelAngle());
+
+            // Test lower clamping (min 0)
+            tank.changeAngle(-200);
+            assertEquals(0, tank.getBarrelAngle());
+        }
+    }
+
+    @Test
+    void testSetBarrelAngle() {
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+
+        tank.setBarrelAngle(120);
+        assertEquals(120, tank.getBarrelAngle());
+
+        tank.setBarrelAngle(250); // Clamped to 180
         assertEquals(180, tank.getBarrelAngle());
 
-        // Test lower clamping (min 0)
-        tank.changeAngle(-200);
+        tank.setBarrelAngle(-50); // Clamped to 0
         assertEquals(0, tank.getBarrelAngle());
     }
 
     @Test
     void testChangePowerClamping() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90);
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
         assertEquals(10.0, tank.getPower());
 
-        // Test normal variation
-        tank.changePower(5.5);
-        assertEquals(15.5, tank.getPower());
+        try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
+            // Test normal variation
+            tank.changePower(5.5);
+            assertEquals(15.5, tank.getPower());
+            mockedSoundEngine.verify(() -> SoundEngine.playPowerChargeSound(15.5), times(1));
 
-        // Test upper bound clamping (max 25.0)
-        tank.changePower(20.0);
+            // Test upper bound clamping (max 25.0)
+            tank.changePower(20.0);
+            assertEquals(25.0, tank.getPower());
+
+            // Test lower bound clamping (min 1.0)
+            tank.changePower(-30.0);
+            assertEquals(1.0, tank.getPower());
+        }
+    }
+
+    @Test
+    void testSetPower() {
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+
+        tank.setPower(18.5);
+        assertEquals(18.5, tank.getPower());
+
+        tank.setPower(40.0); // Clamped to 25.0
         assertEquals(25.0, tank.getPower());
 
-        // Test lower bound clamping (min 1.0)
-        tank.changePower(-30.0);
+        tank.setPower(0.5); // Clamped to 1.0
         assertEquals(1.0, tank.getPower());
     }
 
     @Test
     void testCheckHit() {
         // Tank is at X=100, Y=186. Width=30 (X bounds: 85 to 115). Height=14 (Y bounds: 186 to 200)
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90);
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
 
         // Center hit
         assertTrue(tank.checkHit(100, 190));
@@ -92,7 +137,7 @@ class TankTest {
 
     @Test
     void testApplyGravity_WhileFallingAndLanding() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90);
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
         tank.setDamageListener(mockDamageListener);
 
         // Suddenly change terrain height drastically downward so the tank is in mid-air
@@ -104,17 +149,20 @@ class TankTest {
         assertTrue(isFalling);
         assertEquals(190, tank.getY()); // 186 + 4
 
-        // Fall loop: keep ticking while applyGravity returns true (meaning it's still in mid-air/snapping)
-        // We limit it to 50 iterations just to prevent an infinite loop if something breaks
-        int safetyCounter = 0;
-        while (tank.applyGravity(mockTerrain) && safetyCounter < 50) {
-            safetyCounter++;
+        try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
+            // Fall loop: keep ticking while applyGravity returns true
+            int safetyCounter = 0;
+            while (tank.applyGravity(mockTerrain) && safetyCounter < 50) {
+                safetyCounter++;
+            }
+            
+            // Now that the loop has exited, applyGravity returned false. 
+            assertFalse(tank.applyGravity(mockTerrain)); 
+            assertEquals(286, tank.getY()); // Snapped exactly to ground
+            
+            // Verify sound played
+            mockedSoundEngine.verify(SoundEngine::playFallDamageSound, times(1));
         }
-        
-        // Now that the loop has exited, applyGravity returned false. 
-        // Let's explicitly assert a final call returns false (grounded and stationary)
-        assertFalse(tank.applyGravity(mockTerrain)); 
-        assertEquals(286, tank.getY()); // Snapped exactly to ground
         
         // Assert damage application
         // Initial fallStartY was 186. Landed at 286. Total drop = 100 pixels.
@@ -125,10 +173,9 @@ class TankTest {
 
     @Test
     void testTakeDamageAndDeath() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90);
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
         tank.setDamageListener(mockDamageListener);
 
-        // Mock the static SoundEngine call to prevent actual sound issues or Exceptions
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
             
             // Take partial damage
@@ -155,7 +202,7 @@ class TankTest {
 
     @Test
     void testReset() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90);
+        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
         
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
             tank.takeDamage(100);

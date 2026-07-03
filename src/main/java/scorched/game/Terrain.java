@@ -206,4 +206,19 @@ public class Terrain {
 			}
 		}
 	}
+
+	/**
+	 * Checks if the terrain is solid at the given coordinates.
+	 * @param x
+	 * @param y
+	 * @return
+	 */
+	public boolean isSolidAt(double x, double y) {
+		return solidGrid[(int) x][(int) y];
+	}
+	
+	
+	public int getScreenWidth() {
+		return screenWidth;
+	}
 }
