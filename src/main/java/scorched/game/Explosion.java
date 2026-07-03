@@ -5,6 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Represents a visual particle explosion effect in the game.
+ *
+ * Generates a cluster of Particles to simulate an explosion.
+ * The class manages the lifecycle, updating, and rendering of its particles.
+ * 
+ */
 public class Explosion {
     private List<Particle> particles;
     private boolean active = true;

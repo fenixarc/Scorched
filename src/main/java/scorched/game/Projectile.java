@@ -52,6 +52,9 @@ public class Projectile {
 		// Collision 1: Off-screen checks (left, right, or bottom)
 		if (x < 0 || x >= screenWidth || y >= screenHeight) {
 			active = false;
+			// Flag the impact as out of bounds
+			this.impactX = -9999;
+			this.impactY = -9999;
 			return;
 		}
 

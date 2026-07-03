@@ -173,7 +173,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			
 			// Temporarily make all other tanks AI
 			//int aiLevel = (i > 0) ? 1 : 0;
-			int aiLevel = 1;
+			int aiLevel = 0;
 
 			// Add the tank
 			Tank newTank = new Tank(randomX, terrain, playerColors[i % playerColors.length], startingAngle, i, aiLevel);
@@ -270,22 +270,26 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	                int ey = activeProjectile.getImpactY();
 	                int blastRadius = activeProjectile.getExplosionRadius();
 	                
-	                // Create visual explosion and explode terrain (leaves dirt floating)
-	                activeExplosions.add(new Explosion(ex, ey));
-	                terrain.explode(ex, ey, blastRadius);
+	                // Only trigger explosion and damage if the shot impacts inside screen bounds
+	                if (ex > 0 && ex < WIDTH && ey > 0 && ey < HEIGHT) {
 
-	                // Calculate blast damage immediately upon impact
-	                for (Tank t : players) {
-	                    if (t.isAlive()) {
-	                        double dist = Math.hypot(t.getX() - ex, t.getY() - ey);
-	                        if (dist < blastRadius) {
-	                            double damageFactor = 1.0 - (dist / blastRadius);
-	                            int damage = (int) (damageFactor * activeProjectile.getDamage());
-	                            t.takeDamage(damage);
-	                            spawnDamageText(t.getX() - 10, t.getY(), damage);
-	                        }
-	                    }
-	                }
+		                // Create visual explosion and explode terrain (leaves dirt floating)
+		                activeExplosions.add(new Explosion(ex, ey));
+		                terrain.explode(ex, ey, blastRadius);
+	
+		                // Calculate blast damage immediately upon impact
+		                for (Tank t : players) {
+		                    if (t.isAlive()) {
+		                        double dist = Math.hypot(t.getX() - ex, t.getY() - ey);
+		                        if (dist < blastRadius) {
+		                            double damageFactor = 1.0 - (dist / blastRadius);
+		                            int damage = (int) (damageFactor * activeProjectile.getDamage());
+		                            t.takeDamage(damage);
+		                            spawnDamageText(t.getX() - 10, t.getY(), damage);
+		                        }
+		                    }
+		                }
+	            	}
 	            }
 	        } 
 	        else {
