@@ -3,6 +3,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.List;
 
+import scorched.sound.SoundEngine;
 import scorched.weapons.AmmoType;
 
 public class Projectile {

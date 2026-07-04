@@ -1,6 +1,9 @@
 package scorched.game;
 import javax.swing.JPanel;
 
+import scorched.sound.MusicTrack;
+import scorched.sound.MusicTracksList;
+import scorched.sound.SoundEngine;
 import scorched.weapons.HERound;
 
 import java.awt.Color;

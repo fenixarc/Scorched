@@ -1,4 +1,4 @@
-package scorched.game;
+package scorched.sound;
 
 public class MusicTrack {
 	private final String name;

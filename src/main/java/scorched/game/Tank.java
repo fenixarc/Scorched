@@ -2,6 +2,8 @@ package scorched.game;
 import java.awt.Color;
 import java.awt.Graphics2D;
 
+import scorched.sound.SoundEngine;
+
 public class Tank {
 
 	private int x;

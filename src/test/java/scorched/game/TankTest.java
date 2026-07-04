@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import scorched.sound.SoundEngine;
+
 import java.awt.Color;
 
 import static org.junit.jupiter.api.Assertions.*;

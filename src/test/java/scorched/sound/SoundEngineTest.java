@@ -1,4 +1,4 @@
-package scorched.game;
+package scorched.sound;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

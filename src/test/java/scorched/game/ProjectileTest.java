@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
+import scorched.sound.SoundEngine;
 import scorched.weapons.AmmoType;
 
 import java.util.ArrayList;
