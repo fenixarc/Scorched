@@ -129,7 +129,7 @@ public class SoundEngine {
 						// CHANNEL 1: Bassline (Sine Wave)
 						if (bassActive && bassFreq > 0.0) {
 							double bassAngle = 2.0 * Math.PI * bassFreq * i / SAMPLE_RATE;
-							totalSignal += Math.sin(bassAngle) * 22 * volumeEnvelope;
+							totalSignal += Math.sin(bassAngle) * 75 * volumeEnvelope;
 						}
 
 						// CHANNEL 2: Melody Lead (Square Wave)
