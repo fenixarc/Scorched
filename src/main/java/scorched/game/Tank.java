@@ -3,8 +3,13 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 
 import scorched.sound.SoundEngine;
+import scorched.weapons.AmmoType;
 
 public class Tank {
+	
+	public static final double MIN_POWER = 1.0;
+	public static final double MAX_POWER = 50.0;
+	public static final double DEFAULT_POWER = 10.0;
 
 	private int x;
 	private int y;
@@ -19,18 +24,21 @@ public class Tank {
 	private DamageListener damageListener;
 	private int playerIndex;
 	private AI ai;
+	private Inventory inventory;
+	private AmmoType currentAmmoType;
 
 	// Aiming properties (Angle in degrees: 0 is right, 90 is straight up, 180 is
 	// left)
 	private int barrelAngle;
 	private int barrelLength = 20;
-	private double power = 10.0;
+	private double power = DEFAULT_POWER;
 
 	public Tank(int startX, Terrain terrain, Color color, int startingAngle, int playerIndex, int aiLevel) {
 		this.x = startX;
 		this.color = color;
 		this.barrelAngle = startingAngle;
 		this.playerIndex = playerIndex;
+		this.inventory = new Inventory();
 		if (aiLevel > 0) {
 			ai = new AI(aiLevel, 0, this);
 		}
@@ -167,10 +175,10 @@ public class Tank {
 	public void changePower(double amount) {
 		this.power += amount;
 		// Keep power between 1 and 25
-		if (this.power < 1.0)
-			this.power = 1.0;
-		else if (this.power > 25.0)
-			this.power = 25.0;
+		if (this.power < MIN_POWER)
+			this.power = MIN_POWER;
+		else if (this.power > MAX_POWER)
+			this.power = MAX_POWER;
 		else
 			SoundEngine.playPowerChargeSound(power);
 	}
@@ -264,11 +272,23 @@ public class Tank {
 	 */
 	
 	public void setPower(double power) {
-	    this.power = Math.max(1.0, Math.min(25.0, power));
+	    this.power = Math.max(MIN_POWER, Math.min(MAX_POWER, power));
 	}
 
 	public AI getAI() {
 		return ai;
+	}
+
+	public Inventory getInventory() {
+		return inventory;
+	}
+
+	public AmmoType getCurrentAmmoType() {
+		return currentAmmoType;
+	}
+
+	public void setCurrentAmmoType(AmmoType currentAmmoType) {
+		this.currentAmmoType = currentAmmoType;
 	}
 	
 }

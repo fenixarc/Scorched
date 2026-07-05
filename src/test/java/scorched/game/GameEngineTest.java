@@ -3,6 +3,7 @@ package scorched.game;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import scorched.weapons.HERound;
 
 import java.awt.event.KeyEvent;
 import java.lang.reflect.Field;
@@ -329,5 +330,29 @@ class GameEngineTest {
         
         gameEngine.spawnDamageText(100, 100, 25);
         assertEquals(1, textList.size(), "Positive damage values should successfully append to text tracker arrays");
+    }
+
+    @Test
+    @DisplayName("executeTankFire initializes an active projectile and locks player controls")
+    void testExecuteTankFire() throws Exception {
+        // Arrange
+        Tank mockTank = mock(Tank.class);
+        when(mockTank.getX()).thenReturn(100);
+        when(mockTank.getY()).thenReturn(200);
+        when(mockTank.getBarrelAngle()).thenReturn(45);
+        when(mockTank.getPower()).thenReturn(50.0);
+        when(mockTank.getCurrentAmmoType()).thenReturn(new HERound());
+
+        Field activeProjectileField = GameEngine.class.getDeclaredField("activeProjectile");
+        activeProjectileField.setAccessible(true);
+        Field lockControlsField = GameEngine.class.getDeclaredField("lockControls");
+        lockControlsField.setAccessible(true);
+
+        // Act
+        gameEngine.executeTankFire(mockTank);
+
+        // Assert
+        assertNotNull(activeProjectileField.get(gameEngine), "An active projectile should be generated");
+        assertTrue((boolean) lockControlsField.get(gameEngine), "Controls should lock upon firing");
     }
 }

@@ -176,7 +176,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			
 			// Temporarily make all other tanks AI
 			//int aiLevel = (i > 0) ? 1 : 0;
-			int aiLevel = 0;
+			int aiLevel = 3;
 
 			// Add the tank
 			Tank newTank = new Tank(randomX, terrain, playerColors[i % playerColors.length], startingAngle, i, aiLevel);
@@ -368,7 +368,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	    int startY = (int) (tank.getY() - Math.sin(rads) * 20);
 
 	    this.activeProjectile = new Projectile(startX, startY, tank.getBarrelAngle(),
-	            tank.getPower(), new HERound());
+	            tank.getPower(), tank.getCurrentAmmoType());
 	    SoundEngine.playFireSound();
 	    this.lockControls = true;
 	}
@@ -683,8 +683,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// ENTER Key
 			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 				SoundEngine.playMenuConfirmSound();
-				currentState = GameState.PLAYING;
 				startNewGame();
+				currentState = GameState.PLAYING;
 			}
 			
 		}

@@ -5,12 +5,10 @@ import java.util.Random;
 
 import scorched.game.GameEngine.GameState;
 import scorched.weapons.AmmoType;
-import scorched.weapons.HERound;
 
 public class AI {
     private int difficultyLevel; // 1 to 5
     private double money;
-    private Inventory inventory; // Handles weapons
     private Random random;
     private Tank myTank;
 
@@ -21,7 +19,6 @@ public class AI {
     public AI(int difficultyLevel, double startingMoney, Tank myTank) {
         this.difficultyLevel = Math.max(1, Math.min(5, difficultyLevel));
         this.money = startingMoney;
-        this.inventory = new Inventory();
         this.random = new Random();
         this.shotsFiredAtTarget = 0;
         this.myTank = myTank;
@@ -81,13 +78,13 @@ public class AI {
      */
     private AmmoType selectAmmoType() {
         // If target is far away, look for a large AoE weapon
-        //if (this.difficultyLevel >= 3 && shotsFiredAtTarget > 2) {
+        if (this.difficultyLevel >= 3 && shotsFiredAtTarget > 2) {
             // We keep missing, let's switch to a weapon with a bigger blast radius
-            //return inventory.getLargestAoEWeapon();
-        //}
+            return this.myTank.getInventory().getWeaponWithLargestExplosion();
+        }
         
         // Default to standard weapon
-        return new HERound();
+        return this.myTank.getInventory().getDefaultAmmoType();
     }
     
     /**
@@ -108,8 +105,7 @@ public class AI {
             return opponents.get(random.nextInt(opponents.size()));
         }
 
-        // Hard AI (3-5): Targets the closest player or the leader
-        // Example: Pick the closest player (simplistic implementation)
+        // Hard AI (3-5): Targets the closest player
         Tank closest = opponents.get(0);
         double minDistance = Double.MAX_VALUE;
         
@@ -138,40 +134,38 @@ public class AI {
 
         // Calculate base angle based on direction
         double defaultAngle = (targetX > myX) ? 45.0 : 135.0; 
+        
+        // Calculate barrel tip coordinates 
         double angleRad = Math.toRadians(defaultAngle);
-
-        // Calculate the exact spawning position at the tip of the barrel (barrelLength = 20)
         int barrelLength = 20;
         double tipX = myX + Math.cos(angleRad) * barrelLength;
-        // Subtracting because Y goes downwards in screen space
-        double tipY = myY - Math.sin(angleRad) * barrelLength; 
-
-        // Calculate displacement relative to the barrel tip
-        double x = targetX - tipX; // Can be positive (right) or negative (left)
-        double y = targetY - tipY; // Negative means target is higher than the barrel tip
-        double gravity = 0.15;
-
-        double cosAngle = Math.cos(angleRad);
-        double tanAngle = Math.tan(angleRad);
-
-        // Calculate perfect power using inverted Y physics
-        // Screen Trajectory: y = -x * tan(θ) + (gravity * x^2) / (2 * v^2 * cos^2(θ))
-        double denominator = 2 * (cosAngle * cosAngle) * (y + x * tanAngle);
-
-        double perfectPower;
-        if (denominator > 0) {
-            // Calculate the physical velocity required
-            double requiredVelocity = Math.sqrt((gravity * x * x) / denominator);
-            perfectPower = requiredVelocity; 
-        } else {
-            // If the denominator is negative or zero, the target is physically unreachable.
-            // Fallback to a baseline power.
-            perfectPower = 10.0; 
-        }
+        double tipY = myY - Math.sin(angleRad) * barrelLength;
+        
+        double perfectPower = calculatePerfectPower(defaultAngle, targetX, targetY, tipX, tipY);
         
         // Simulate the shot to see if it hits terrain
-        if (this.difficultyLevel == 5) {
-        	//ProjectileSimulator.checkTrajectory(tipX, tipY, defaultAngle, perfectPower, terrain, target);
+        boolean clearPath = ProjectileSimulator.checkTrajectory(tipX, tipY, defaultAngle, perfectPower, terrain, target);
+        
+        // Level 2 and higher get to recalculate their shot
+        if (!clearPath && this.difficultyLevel >= 2) {
+        	defaultAngle = (targetX > myX) ? 0.0 : 180.0;
+        	// Check every 10 degrees from max to 90
+        	for (int i = 1; i < 9; i++) {
+        		System.out.println("Simulated shot missed, revising");
+        		defaultAngle += (targetX > myX) ? 10.0 : -10.0;
+        		
+        		// Recalculate tip positions for the new angle
+                angleRad = Math.toRadians(defaultAngle);
+                tipX = myX + Math.cos(angleRad) * barrelLength;
+                tipY = myY - Math.sin(angleRad) * barrelLength;
+                
+                perfectPower = calculatePerfectPower(defaultAngle, targetX, targetY, tipX, tipY);
+                
+                clearPath = ProjectileSimulator.checkTrajectory(
+                        tipX, tipY, defaultAngle, perfectPower, terrain, target
+                    );
+        		if (clearPath) break;
+        	}
         }
 
         // Apply Difficulty Noise
@@ -194,20 +188,46 @@ public class AI {
         // Clamp the values safely within legal game constraints before setting them
         int finalAngle = Math.max(0, Math.min(180, rawAngle));
         
-        // Handle potential NaN fallback gracefully and clamp power between tank boundaries (1.0 to 25.0)
+        // Handle potential NaN fallback gracefully and clamp power between tank MIN and MAX
         if (Double.isNaN(rawPower)) {
-            rawPower = 10.0; // Standard fallback power
+            rawPower = Tank.DEFAULT_POWER; // Standard fallback power
         }
-        double finalPower = Math.max(1.0, Math.min(25.0, rawPower));
+        double finalPower = Math.max(Tank.MIN_POWER, Math.min(Tank.MAX_POWER, rawPower));
 
         // Fire the weapon safely
         //this.myTank.setBarrelAngle(finalAngle);
         //this.myTank.setPower(finalPower);
         this.myTank.setBarrelAngle(finalAngle);
         this.myTank.setPower(finalPower);
+        this.myTank.setCurrentAmmoType(ammoType);
         System.out.println("AI: " + this.myTank.getPlayerIndex() + " targeting: " + target.getPlayerIndex() + " firing: " + ammoType.getName() 
         		+ " perfectPower: " + (float) perfectPower + " finalPower: " + (float) finalPower 
         		+ " defaultAngle: " + defaultAngle + " finalAngle: " + finalAngle);
+    }
+    
+    private double calculatePerfectPower(double defaultAngle, double targetX, double targetY, double tipX, double tipY) {
+        double angleRad = Math.toRadians(defaultAngle);
+
+        // Calculate displacement relative to the provided barrel tip
+        double x = targetX - tipX; 
+        double y = targetY - tipY; 
+        double gravity = 0.15;
+
+        double cosAngle = Math.cos(angleRad);
+        double tanAngle = Math.tan(angleRad);
+
+        // Calculate perfect power using inverted Y physics
+        // Screen Trajectory: y = -x * tan(θ) + (gravity * x^2) / (2 * v^2 * cos^2(θ))
+        double denominator = 2 * (cosAngle * cosAngle) * (y + x * tanAngle);
+
+        if (denominator > 0) {
+        	// Calculate the physical velocity required
+            return Math.sqrt((gravity * x * x) / denominator); 
+        } else {
+        	// If the denominator is negative or zero, the target is physically unreachable.
+            // Fallback to a baseline power.
+            return 10.0;
+        }
     }
 
     private double getNoiseFactor() {

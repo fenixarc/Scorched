@@ -7,6 +7,7 @@ public class ProjectileSimulator {
      */
     public static boolean checkTrajectory(double startX, double startY, double angle, double power, 
     									  Terrain terrain, Tank target) {
+    	System.out.println("Simulating shot at power: " + (float) power + " angle: " + angle);
         double g = 0.15;
         
         // Convert angle to radians
@@ -20,10 +21,10 @@ public class ProjectileSimulator {
 
         double x = startX;
         double y = startY;
-        double dt = 1.0; // Set step to 1.0 to perfectly match frame updates, or leave at 0.1 for precise paths
+        double dt = .1; // Set step to 1.0 to perfectly match frame updates, or leave at 0.1 for precise paths
 
-        // Simulate for a max of 20 seconds (or until out of bounds)
-        for (double t = 0; t < 20.0; t += dt) {
+        // Simulate for a max of t seconds (or until out of bounds)
+        for (double t = 0; t < 100.0; t += dt) {
             
             // Gravity pulls DOWNWARDS, meaning it INCREASES the screen Y-velocity
             vy += g * dt; 
@@ -33,6 +34,7 @@ public class ProjectileSimulator {
 
             // 1. Check if we hit the left or right map boundaries
             if (x < 0 || x > terrain.getScreenWidth()) {
+            	System.out.println("Simulated shot hit map boundary");
                 return false; 
             }
 
@@ -40,16 +42,20 @@ public class ProjectileSimulator {
             if (y >= 0 && terrain.isSolidAt(x, y)) {
                 // Did we hit close enough to the target anyway?
                 if (isCloseToTarget(x, y, target)) {
+                	System.out.println("Simulated shot close enough");
                     return true;
                 }
+                System.out.println("Simulated shot hit terrain");
                 return false; // Hit a mountain/terrain instead of the player
             }
 
             // 3. Check if we pass directly through the target's bounding box
             if (isCloseToTarget(x, y, target)) {
+            	System.out.println("Simulated shot direct hit");
                 return true;
             }
         }
+        System.out.println("Simulated shot missed");
         return false;
     }
 

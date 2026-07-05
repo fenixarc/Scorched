@@ -95,12 +95,12 @@ class TankTest {
             assertEquals(15.5, tank.getPower());
             mockedSoundEngine.verify(() -> SoundEngine.playPowerChargeSound(15.5), times(1));
 
-            // Test upper bound clamping (max 25.0)
-            tank.changePower(20.0);
-            assertEquals(25.0, tank.getPower());
+            // Test upper bound clamping (updated to match MAX_POWER = 50.0)
+            tank.changePower(40.0);
+            assertEquals(50.0, tank.getPower());
 
             // Test lower bound clamping (min 1.0)
-            tank.changePower(-30.0);
+            tank.changePower(-60.0);
             assertEquals(1.0, tank.getPower());
         }
     }
@@ -112,10 +112,10 @@ class TankTest {
         tank.setPower(18.5);
         assertEquals(18.5, tank.getPower());
 
-        tank.setPower(40.0); // Clamped to 25.0
-        assertEquals(25.0, tank.getPower());
+        tank.setPower(60.0); // Clamped to MAX_POWER (50.0)
+        assertEquals(50.0, tank.getPower());
 
-        tank.setPower(0.5); // Clamped to 1.0
+        tank.setPower(0.5); // Clamped to MIN_POWER (1.0)
         assertEquals(1.0, tank.getPower());
     }
 
