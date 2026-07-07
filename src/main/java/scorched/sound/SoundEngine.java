@@ -567,4 +567,49 @@ public class SoundEngine {
 
 		playGeneratedSound(buffer);
 	}
+	
+	/**
+	 * Synthesizes a massive, low-frequency white noise explosion mimicking 
+	 * a sharp lightning strike crack followed by a deep rolling thunder decay.
+	 */
+	public static void playThunderSound() {
+		int durationMs = 1200; // 1.2 seconds of rolling thunder
+		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		byte[] buffer = new byte[numSamples];
+		Random random = new Random();
+
+		double lowPassFilter = 0.0;
+
+		for (int i = 0; i < numSamples; i++) {
+			double progress = (double) i / numSamples;
+			double msElapsed = (double) i / SAMPLE_RATE * 1000.0;
+
+			// Generate raw white noise (-128 to 127)
+			double noise = random.nextInt(256) - 128;
+
+			// LAYER 1: The Initial Sharp Crack (First 80 milliseconds)
+			// Higher frequency pass-through for an immediate lightning snap
+			double crackSignal = 0.0;
+			if (msElapsed < 80) {
+				crackSignal = noise * 0.8 * (1.0 - (msElapsed / 80.0));
+			}
+
+			// LAYER 2: The Rolling Deep Rumble (Whole Duration)
+			// Smooth low-pass filter to block highs and create bass structure
+			lowPassFilter = lowPassFilter * 0.93 + noise * 0.07;
+			
+			// Non-linear decay envelope so the rumble trails off naturally
+			double rumbleEnvelope = Math.pow(1.0 - progress, 3);
+			double rumbleSignal = lowPassFilter * 1.2 * rumbleEnvelope;
+
+			// Combine layers and maximize saturation bounds
+			double finalSignal = (crackSignal + rumbleSignal) * 1.5;
+
+			if (finalSignal > 127)  finalSignal = 127;
+			if (finalSignal < -128) finalSignal = -128;
+
+			buffer[i] = (byte) finalSignal;
+		}
+		playGeneratedSound(buffer);
+	}
 }

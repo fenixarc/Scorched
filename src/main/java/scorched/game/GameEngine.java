@@ -1,4 +1,5 @@
 package scorched.game;
+
 import javax.swing.JPanel;
 
 import scorched.sound.MusicTrack;
@@ -39,13 +40,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	private GameState currentState = GameState.MAIN_MENU;
 	private volatile boolean isGeneratingWorld = false;
-	
+
 	// Pause Menu Selection (0 = Settings, 1 = Exit Battle)
 	private int selectedPauseOption;
 
 	// Main Menu
 	private BufferedImage splashImage;
-	private String[] hillOptions = {"Random", "Rolling Hills", "Large Hills", "Jagged Cliffs"};
+	private String[] hillOptions = { "Random", "Rolling Hills", "Large Hills", "Jagged Cliffs" };
 	private int selectedHillIndex;
 	private int selectedMenuOption;
 
@@ -54,16 +55,19 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	// Paired environment profiles (Sky Color, Dirt Color)
 	private final EnvironmentPalette[] BATTLE_ENVIRONMENTS = {
-	    new EnvironmentPalette(new Color(20, 24, 46),   new Color(115, 75, 45)),   // Deep Space / Classic Brown Earth
-	    new EnvironmentPalette(new Color(40, 20, 45),   new Color(75, 50, 90)),    // Cosmic Purple / Alien Violet Crags
-	    new EnvironmentPalette(new Color(15, 35, 30),   new Color(130, 145, 60)),  // Toxic Dusk / Radioactive Lime Acid
-	    new EnvironmentPalette(new Color(50, 25, 20),   new Color(140, 60, 40)),   // Martian Rust / Crimson Oxide Sands
-	    new EnvironmentPalette(new Color(25, 25, 25),   new Color(160, 165, 170)), // Stormy Grey / Moon Surface Basalt
-	    new EnvironmentPalette(new Color(12, 16, 33),   new Color(210, 180, 140))  // Midnight Navy / Desert Dunes
+			new EnvironmentPalette(new Color(20, 24, 46), new Color(115, 75, 45)), // Deep Space / Classic Brown Earth
+			new EnvironmentPalette(new Color(40, 20, 45), new Color(75, 50, 90)), // Cosmic Purple / Alien Violet Crags
+			new EnvironmentPalette(new Color(15, 35, 30), new Color(130, 145, 60)), // Toxic Dusk / Radioactive Lime
+																					// Acid
+			new EnvironmentPalette(new Color(50, 25, 20), new Color(140, 60, 40)), // Martian Rust / Crimson Oxide Sands
+			new EnvironmentPalette(new Color(25, 25, 25), new Color(160, 165, 170)), // Stormy Grey / Moon Surface
+																						// Basalt
+			new EnvironmentPalette(new Color(12, 16, 33), new Color(210, 180, 140)) // Midnight Navy / Desert Dunes
 	};
 
 	// Game Classes
 	private Terrain terrain;
+	private WeatherManager weatherManager;
 	private List<Tank> players;
 
 	// Tracking Variables
@@ -93,7 +97,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		this.addKeyListener(this);
 		selectedPlayerCount = 2;
 		selectedHillIndex = 0; // Defaults to "Random"
-	    selectedMenuOption = 0; // Set Main Menu default selection
+		selectedMenuOption = 0; // Set Main Menu default selection
+		this.weatherManager = new WeatherManager(WIDTH, HEIGHT);
 
 		// Load the splash image safely
 		try {
@@ -113,44 +118,42 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	public void startNewGame() {
 		isGeneratingWorld = true;
 		selectedPauseOption = 0;
-		
+
 		// Pick a random environment bundle
-	    java.util.Random rand = new java.util.Random();
-	    EnvironmentPalette activeEnv = BATTLE_ENVIRONMENTS[rand.nextInt(BATTLE_ENVIRONMENTS.length)];
+		java.util.Random rand = new java.util.Random();
+		EnvironmentPalette activeEnv = BATTLE_ENVIRONMENTS[rand.nextInt(BATTLE_ENVIRONMENTS.length)];
 
 		// Set sky color
-	    this.skyColor = activeEnv.sky;
-	    this.setBackground(skyColor);
+		this.skyColor = activeEnv.sky;
+		this.setBackground(skyColor);
 
 		// Initialize terrain, dirt color, and randomize hill strength
-	    int hillStrength;
-	    if (selectedHillIndex == 0)
-	    	hillStrength = rand.nextInt(2) + 1;
-	    else
-	    	hillStrength = selectedHillIndex;
-	    terrain = new Terrain(WIDTH, HEIGHT, activeEnv.dirt, hillStrength);
-	    
-	    // Set Main Menu default selection
-	    selectedMenuOption = 0;
-	    
-	    // Array of music tracks for in game
-	    MusicTrack[] battleTracks = {
-	        MusicTracksList.DESERT_WASTELAND,
-	        MusicTracksList.NEON_CITADEL,
-	        MusicTracksList.GALACTIC_DROP,
-	        MusicTracksList.APEX_PREDATOR,
-	        MusicTracksList.HELL_DIVER
-        };
-	    
-	    // Select and store the music track
-	    currentBattleTrack = battleTracks[rand.nextInt(battleTracks.length)];
-	    SoundEngine.stopMusic();
-	    SoundEngine.startMusic(currentBattleTrack);
+		int hillStrength;
+		if (selectedHillIndex == 0)
+			hillStrength = rand.nextInt(2) + 1;
+		else
+			hillStrength = selectedHillIndex;
+		terrain = new Terrain(WIDTH, HEIGHT, activeEnv.dirt, hillStrength);
+
+		// Pick dynamic environmental climate
+		weatherManager.randomizeWeather();
+
+		// Set Main Menu default selection
+		selectedMenuOption = 0;
+
+		// Array of music tracks for in game
+		MusicTrack[] battleTracks = { MusicTracksList.DESERT_WASTELAND, MusicTracksList.NEON_CITADEL,
+				MusicTracksList.GALACTIC_DROP, MusicTracksList.APEX_PREDATOR, MusicTracksList.HELL_DIVER };
+
+		// Select and store the music track
+		currentBattleTrack = battleTracks[rand.nextInt(battleTracks.length)];
+		SoundEngine.stopMusic();
+		SoundEngine.startMusic(currentBattleTrack);
 
 		// Initialize players
 		players = new ArrayList<>();
-		Color[] playerColors = { Color.RED, Color.BLUE, Color.GREEN, Color.MAGENTA, Color.YELLOW, Color.DARK_GRAY, Color.WHITE, 
-				Color.PINK, Color.CYAN, Color.GRAY};
+		Color[] playerColors = { Color.RED, Color.BLUE, Color.GREEN, Color.MAGENTA, Color.YELLOW, Color.DARK_GRAY,
+				Color.WHITE, Color.PINK, Color.CYAN, Color.GRAY };
 
 		// Divide screen into sectors so tanks don't overlap, and shuffle them
 		List<Integer> sectors = new ArrayList<>();
@@ -173,10 +176,10 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 			// Set default cannon angle
 			int startingAngle = (randomX < WIDTH / 2) ? 45 : 135;
-			
+
 			// Temporarily make all other tanks AI
-			//int aiLevel = (i > 0) ? 1 : 0;
-			int aiLevel = 3;
+			// int aiLevel = (i > 0) ? 1 : 0;
+			int aiLevel = 1;
 
 			// Add the tank
 			Tank newTank = new Tank(randomX, terrain, playerColors[i % playerColors.length], startingAngle, i, aiLevel);
@@ -184,22 +187,19 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			newTank.setDamageListener(this);
 		}
 
-	    // Reset trackers
-	    activeProjectile = null;
-	    activeExplosions = new ArrayList<>();
-	    floatingTexts = new ArrayList<>();
+		// Reset trackers
+		activeProjectile = null;
+		activeExplosions = new ArrayList<>();
+		floatingTexts = new ArrayList<>();
 		activePlayerIndex = 0;
 		lockControls = false;
 		isShotFired = false;
 		activeDebris = new ArrayList<>();
-		
-		System.out.println("Starting new game: \n"
-				+ "activeEnv: " + activeEnv + "\n"
-				+ "selectedPlayerCount: " + selectedPlayerCount + "\n"
-				+ "sectors: " + sectors.size() + "\n"
-				+ "sectorWidth: " + sectorWidth + "\n"
-				+ "hillStrength: " + hillStrength);
-		
+
+		System.out.println("Starting new game: \n" + "activeEnv: " + activeEnv + "\n" + "selectedPlayerCount: "
+				+ selectedPlayerCount + "\n" + "sectors: " + sectors.size() + "\n" + "sectorWidth: " + sectorWidth
+				+ "\n" + "hillStrength: " + hillStrength);
+
 		isGeneratingWorld = false;
 	}
 
@@ -239,168 +239,202 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		if (currentState == GameState.PAUSED) {
 			return;
 		}
-		
-	    if (!isGeneratingWorld && currentState == GameState.PLAYING) {
 
-	        // 1. Visual Effects (run independently of other phases)
-	        for (int i = activeDebris.size() - 1; i >= 0; i--) {
-	            TurretDebris d = activeDebris.get(i);
-	            d.update(terrain, WIDTH, HEIGHT);
-	            if (!d.isActive()) activeDebris.remove(i);
-	        }
-	        
-	        for (int i = activeExplosions.size() - 1; i >= 0; i--) {
-	            Explosion exp = activeExplosions.get(i);
-	            exp.update();
-	            if (!exp.isActive()) activeExplosions.remove(i);
-	        }
-	        
-	        for (int i = floatingTexts.size() - 1; i >= 0; i--) {
-	            FloatingText ft = floatingTexts.get(i);
-	            if (!ft.update()) floatingTexts.remove(i);
-	        }
+		if (!isGeneratingWorld && currentState == GameState.PLAYING) {
 
-	        boolean projectileInAir = (activeProjectile != null && activeProjectile.isActive());
+			// 1. Visual Effects (run independently of other phases)
+			for (int i = activeDebris.size() - 1; i >= 0; i--) {
+				TurretDebris d = activeDebris.get(i);
+				d.update(terrain, WIDTH, HEIGHT);
+				if (!d.isActive())
+					activeDebris.remove(i);
+			}
 
-	        // 2. Fire projectiles
-	        if (projectileInAir) {
-	            // PHASE A: Projectile is flying
-	        	isShotFired = true;
-	            activeProjectile.update(terrain, players, WIDTH, HEIGHT);
+			for (int i = activeExplosions.size() - 1; i >= 0; i--) {
+				Explosion exp = activeExplosions.get(i);
+				exp.update();
+				if (!exp.isActive())
+					activeExplosions.remove(i);
+			}
 
-	            if (!activeProjectile.isActive()) {
-	                int ex = activeProjectile.getImpactX();
-	                int ey = activeProjectile.getImpactY();
-	                int blastRadius = activeProjectile.getExplosionRadius();
-	                
-	                // Only trigger explosion and damage if the shot impacts inside screen bounds
-	                if (ex > 0 && ex < WIDTH && ey > 0 && ey < HEIGHT) {
+			for (int i = floatingTexts.size() - 1; i >= 0; i--) {
+				FloatingText ft = floatingTexts.get(i);
+				if (!ft.update())
+					floatingTexts.remove(i);
+			}
 
-		                // Create visual explosion and explode terrain (leaves dirt floating)
-		                activeExplosions.add(new Explosion(ex, ey));
-		                terrain.explode(ex, ey, blastRadius);
-	
-		                // Calculate blast damage immediately upon impact
-		                for (Tank t : players) {
-		                    if (t.isAlive()) {
-		                        double dist = Math.hypot(t.getX() - ex, t.getY() - ey);
-		                        if (dist < blastRadius) {
-		                            double damageFactor = 1.0 - (dist / blastRadius);
-		                            int damage = (int) (damageFactor * activeProjectile.getDamage());
-		                            t.takeDamage(damage);
-		                            spawnDamageText(t.getX() - 10, t.getY(), damage);
-		                        }
-		                    }
-		                }
-	            	}
-	            }
-	        } 
-	        else {
-	        	// PHASE B: Projectile is done, wait for explosion animations to wrap up
-	        	boolean explosionsRunning = !activeExplosions.isEmpty();
-	            
-	        	if (explosionsRunning) {
-	                // Wait
-	            }
-	        	else {
-		            // PHASE C: Projectiles and explosions are finished. Run terrain physics.
-	        		boolean terrainFalling = terrain.update();
+			// Progress weather engine physics frame
+			weatherManager.update(terrain);
 
-		            if (!terrainFalling) {
-		                // PHASE D: Terrain has finished collapsing. Apply tank gravity.
-		            	boolean tanksMoving = false;
-		                for (Tank t : players) {
-		                    if (t.applyGravity(terrain)) {
-		                        tanksMoving = true; 
-		                    }
-		                }
-		                
-		    	        // PHASE E: Tanks are stable. Turn Management and Round-End Processing
-		    	        if (lockControls && isShotFired && !tanksMoving) {
-		    	            activeProjectile = null;
+			// --- ENVIRONMENT STRIKE DETECTOR ---
+			if (weatherManager.hasStrikeImpacted()) {
+				int lx = weatherManager.getStrikeX();
+				int ly = weatherManager.getStrikeY();
+				int strikeRadius = 10; // Size of lightning impact crater
+				int maxStrikeDamage = 10; // Minor damage cap
 
-		    	            int survivorsCount = 0;
-		    	            for (Tank t : players) {
-		    	                if (t.isAlive()) survivorsCount++;
-		    	            }
+				// Trigger visual explosion and explode terrain instantly
+	            activeExplosions.add(new Explosion(lx, ly));
+	            terrain.explode(lx, ly, strikeRadius);
 
-		    	            if (survivorsCount <= 1) {
-		    	                SoundEngine.stopMusic();
-		    	                SoundEngine.startMusic(MusicTracksList.VICTORY_THEME);
-		    	                currentState = GameState.GAME_OVER;
-		    	            } else {
-		    	                switchTurn();
-		    	                lockControls = false;
-		    	                isShotFired = false;
-		    	            }
-		    	        }
-		            }
-		        }
-	        } 
-
-	        if (!lockControls && activePlayerIndex < players.size()) {
-	            Tank activeTank = players.get(activePlayerIndex);
-	            if (activeTank.isAlive()) {
-	            	if (activeTank.getAI() != null) {
-	            		activeTank.getAI().takeTurn(this.currentState, terrain, getActivePlayers());
-	            		executeTankFire(activeTank);
-	                } 
-	            	else {
-		                if (keys[KeyEvent.VK_LEFT]) {
-		                	SoundEngine.playBarrelRotateSound();
-		                	activeTank.changeAngle(1);
-		                }
-		                if (keys[KeyEvent.VK_RIGHT]) {
-		                	SoundEngine.playBarrelRotateSound();
-		                	activeTank.changeAngle(-1);
-		                }
-		                if (keys[KeyEvent.VK_UP])    activeTank.changePower(0.15);
-		                if (keys[KeyEvent.VK_DOWN])  activeTank.changePower(-0.15);
+	            // Apply minor splash damage to any nearby tanks
+	            for (Tank t : players) {
+	                if (t.isAlive()) {
+	                    double dist = Math.hypot(t.getX() - lx, t.getY() - ly);
+	                    if (dist < strikeRadius) {
+	                        double damageFactor = 1.0 - (dist / strikeRadius);
+	                        int damage = (int) (damageFactor * maxStrikeDamage);
+	                        if (damage > 0) {
+	                            t.takeDamage(damage);
+	                            spawnDamageText(t.getX() - 10, t.getY(), damage);
+	                        }
+	                    }
 	                }
 	            }
-	        }
-	    }
-	}
-	
-	public void executeTankFire(Tank tank) {
-	    double rads = Math.toRadians(tank.getBarrelAngle());
-	    int startX = (int) (tank.getX() + Math.cos(rads) * 20);
-	    int startY = (int) (tank.getY() - Math.sin(rads) * 20);
+			}
 
-	    this.activeProjectile = new Projectile(startX, startY, tank.getBarrelAngle(),
-	            tank.getPower(), tank.getCurrentAmmoType());
-	    SoundEngine.playFireSound();
-	    this.lockControls = true;
+			boolean projectileInAir = (activeProjectile != null && activeProjectile.isActive());
+
+			// 2. Fire projectiles
+			if (projectileInAir) {
+				// PHASE A: Projectile is flying
+				isShotFired = true;
+				activeProjectile.update(terrain, players, WIDTH, HEIGHT);
+
+				if (!activeProjectile.isActive()) {
+					int ex = activeProjectile.getImpactX();
+					int ey = activeProjectile.getImpactY();
+					int blastRadius = activeProjectile.getExplosionRadius();
+
+					// Only trigger explosion and damage if the shot impacts inside screen bounds
+					if (ex > 0 && ex < WIDTH && ey > 0 && ey < HEIGHT) {
+
+						// Create visual explosion and explode terrain (leaves dirt floating)
+						activeExplosions.add(new Explosion(ex, ey));
+						terrain.explode(ex, ey, blastRadius);
+
+						// Calculate blast damage immediately upon impact
+						for (Tank t : players) {
+							if (t.isAlive()) {
+								double dist = Math.hypot(t.getX() - ex, t.getY() - ey);
+								if (dist < blastRadius) {
+									double damageFactor = 1.0 - (dist / blastRadius);
+									int damage = (int) (damageFactor * activeProjectile.getDamage());
+									t.takeDamage(damage);
+									spawnDamageText(t.getX() - 10, t.getY(), damage);
+								}
+							}
+						}
+					}
+				}
+			} else {
+				// PHASE B: Projectile is done, wait for explosion animations to wrap up
+				boolean explosionsRunning = !activeExplosions.isEmpty();
+
+				if (explosionsRunning) {
+					// Wait
+				} else {
+					// PHASE C: Projectiles and explosions are finished. Run terrain physics.
+					boolean terrainFalling = terrain.update();
+
+					if (!terrainFalling) {
+						// PHASE D: Terrain has finished collapsing. Apply tank gravity.
+						boolean tanksMoving = false;
+						for (Tank t : players) {
+							if (t.applyGravity(terrain)) {
+								tanksMoving = true;
+							}
+						}
+
+						// PHASE E: Tanks are stable. Turn Management and Round-End Processing
+						if (lockControls && isShotFired && !tanksMoving) {
+							activeProjectile = null;
+
+							int survivorsCount = 0;
+							for (Tank t : players) {
+								if (t.isAlive())
+									survivorsCount++;
+							}
+
+							if (survivorsCount <= 1) {
+								SoundEngine.stopMusic();
+								SoundEngine.startMusic(MusicTracksList.VICTORY_THEME);
+								currentState = GameState.GAME_OVER;
+							} else {
+								switchTurn();
+								lockControls = false;
+								isShotFired = false;
+							}
+						}
+					}
+				}
+			}
+
+			if (!lockControls && activePlayerIndex < players.size()) {
+				Tank activeTank = players.get(activePlayerIndex);
+				if (activeTank.isAlive()) {
+					if (activeTank.getAI() != null) {
+						activeTank.getAI().takeTurn(this.currentState, terrain, getActivePlayers());
+						executeTankFire(activeTank);
+					} else {
+						if (keys[KeyEvent.VK_LEFT]) {
+							SoundEngine.playBarrelRotateSound();
+							activeTank.changeAngle(1);
+						}
+						if (keys[KeyEvent.VK_RIGHT]) {
+							SoundEngine.playBarrelRotateSound();
+							activeTank.changeAngle(-1);
+						}
+						if (keys[KeyEvent.VK_UP])
+							activeTank.changePower(0.15);
+						if (keys[KeyEvent.VK_DOWN])
+							activeTank.changePower(-0.15);
+					}
+				}
+			}
+		}
 	}
-	
+
+	public void executeTankFire(Tank tank) {
+		double rads = Math.toRadians(tank.getBarrelAngle());
+		int startX = (int) (tank.getX() + Math.cos(rads) * 20);
+		int startY = (int) (tank.getY() - Math.sin(rads) * 20);
+
+		this.activeProjectile = new Projectile(startX, startY, tank.getBarrelAngle(), tank.getPower(),
+				tank.getCurrentAmmoType());
+		SoundEngine.playFireSound();
+		this.lockControls = true;
+	}
+
 	/**
 	 * Interface for tank fall damage.
 	 */
 	@Override
 	public void onTankTakeDamage(int tankX, int tankY, int amount) {
-	    spawnDamageText(tankX - 10, tankY, amount);
+		spawnDamageText(tankX - 10, tankY, amount);
 	}
-	
+
 	/**
 	 * Spawns a floating notification over a specified location.
 	 */
 	public void spawnDamageText(int x, int y, int amount) {
-	    if (amount <= 0) return;
-	    
-	    String textMsg = "-" + amount;
-	    // Tweak color: Light red for standard hits, bold bright red for big hits
-	    Color numColor = (amount > 35) ? new Color(255, 50, 50) : new Color(255, 140, 140);
-	    
-	    // Add text object to animate for 50 frames
-	    floatingTexts.add(new FloatingText(x, y, textMsg, numColor, 50));
+		if (amount <= 0)
+			return;
+
+		String textMsg = "-" + amount;
+		// Tweak color: Light red for standard hits, bold bright red for big hits
+		Color numColor = (amount > 35) ? new Color(255, 50, 50) : new Color(255, 140, 140);
+
+		// Add text object to animate for 50 frames
+		floatingTexts.add(new FloatingText(x, y, textMsg, numColor, 50));
 	}
-	
+
 	/**
 	 * Interface for tank turret explosion.
 	 */
 	@Override
 	public void onTurretSpawned(TurretDebris debris) {
-	    this.activeDebris.add(debris);
+		this.activeDebris.add(debris);
 	}
 
 	@Override
@@ -410,94 +444,94 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 		// Render based on what state the game is in
 		switch (currentState) {
-	        case MAIN_MENU:
-	            drawMainMenu(g2d);
-	            break;
-	        case PLAYING:
-	            drawGamePlay(g2d);
-	            break;
-	        case PAUSED:
-				drawGamePlay(g2d);
-				drawPauseMenu(g2d);
-				break;
-	        case GAME_OVER:
-	            drawEndScreen(g2d);
-	            break;
-	        case BUYING:
-	        	// Placeholder
-	        	break;
-    }
+		case MAIN_MENU:
+			drawMainMenu(g2d);
+			break;
+		case PLAYING:
+			drawGamePlay(g2d);
+			break;
+		case PAUSED:
+			drawGamePlay(g2d);
+			drawPauseMenu(g2d);
+			break;
+		case GAME_OVER:
+			drawEndScreen(g2d);
+			break;
+		case BUYING:
+			// Placeholder
+			break;
+		}
 
 		g2d.dispose();
 	}
-	
+
 	private void drawCenteredString(Graphics2D g2d, String text, int y) {
-	    FontMetrics fm = g2d.getFontMetrics();
-	    int x = (WIDTH - fm.stringWidth(text)) / 2;
-	    g2d.drawString(text, x, y);
+		FontMetrics fm = g2d.getFontMetrics();
+		int x = (WIDTH - fm.stringWidth(text)) / 2;
+		g2d.drawString(text, x, y);
 	}
 
 	private void drawMainMenu(Graphics2D g2d) {
-	    if (splashImage != null) {
-	        // Draw image stretched to fit the window dimensions
-	        g2d.drawImage(splashImage, 0, 0, WIDTH, HEIGHT, null);
-	    } else {
-	        // Fallback text if your image fails to load
-	        g2d.setColor(Color.WHITE);
-	        drawCenteredString(g2d, "SCORCHED", HEIGHT / 2);
-	    }
-	    
-	    g2d.setFont(new Font("Arial", Font.BOLD, 18));
-	    g2d.setColor(Color.BLUE);
-	    drawCenteredString(g2d, "UP / DOWN ARROWS CHANGE SELECTION", HEIGHT / 2 - 80);
-	    drawCenteredString(g2d, "RIGHT / LEFT ARROWS CHANGE SETTING", HEIGHT / 2 - 60);
+		if (splashImage != null) {
+			// Draw image stretched to fit the window dimensions
+			g2d.drawImage(splashImage, 0, 0, WIDTH, HEIGHT, null);
+		} else {
+			// Fallback text if your image fails to load
+			g2d.setColor(Color.WHITE);
+			drawCenteredString(g2d, "SCORCHED", HEIGHT / 2);
+		}
 
-	    // ==========================================
-	    // BOX 1: PLAYERS SELECTION
-	    // ==========================================
-	    g2d.setColor(new Color(25, 30, 55));
-	    g2d.fillRect(WIDTH / 2 - 150, HEIGHT / 2 - 15, 300, 60);
-	    // Highlight if selected
-	    if (selectedMenuOption == 0)
-	    	g2d.setColor(Color.YELLOW);
-	    else
-	    	g2d.setColor(Color.CYAN);
-	    g2d.drawRect(WIDTH / 2 - 150, HEIGHT / 2 - 15, 300, 60);
+		g2d.setFont(new Font("Arial", Font.BOLD, 18));
+		g2d.setColor(Color.BLUE);
+		drawCenteredString(g2d, "UP / DOWN ARROWS CHANGE SELECTION", HEIGHT / 2 - 80);
+		drawCenteredString(g2d, "RIGHT / LEFT ARROWS CHANGE SETTING", HEIGHT / 2 - 60);
 
-	    g2d.setFont(new Font("Arial", Font.BOLD, 24));
-	    g2d.setColor(Color.WHITE);
-	    g2d.drawString("PLAYERS: " + selectedPlayerCount, WIDTH / 2 - 65, HEIGHT / 2 + 23);
+		// ==========================================
+		// BOX 1: PLAYERS SELECTION
+		// ==========================================
+		g2d.setColor(new Color(25, 30, 55));
+		g2d.fillRect(WIDTH / 2 - 150, HEIGHT / 2 - 15, 300, 60);
+		// Highlight if selected
+		if (selectedMenuOption == 0)
+			g2d.setColor(Color.YELLOW);
+		else
+			g2d.setColor(Color.CYAN);
+		g2d.drawRect(WIDTH / 2 - 150, HEIGHT / 2 - 15, 300, 60);
 
-	    // ==========================================
-	    // BOX 2: HILL STRENGTH SELECTION
-	    // ==========================================
-	    // Shifted down by 80 pixels (60px box height + 20px gap)
-	    int box2Y = HEIGHT / 2 - 15 + 80; 
+		g2d.setFont(new Font("Arial", Font.BOLD, 24));
+		g2d.setColor(Color.WHITE);
+		g2d.drawString("PLAYERS: " + selectedPlayerCount, WIDTH / 2 - 65, HEIGHT / 2 + 23);
 
-	    g2d.setColor(new Color(25, 30, 55));
-	    g2d.fillRect(WIDTH / 2 - 150, box2Y, 300, 60);
-	    // Highlight if selected
-	    if (selectedMenuOption == 1)
-	    	g2d.setColor(Color.YELLOW);
-	    else
-	    	g2d.setColor(Color.CYAN);
-	    g2d.drawRect(WIDTH / 2 - 150, box2Y, 300, 60);
+		// ==========================================
+		// BOX 2: HILL STRENGTH SELECTION
+		// ==========================================
+		// Shifted down by 80 pixels (60px box height + 20px gap)
+		int box2Y = HEIGHT / 2 - 15 + 80;
 
-	    // Draw the text dynamically from array
-	    g2d.setFont(new Font("Arial", Font.BOLD, 20));
-	    g2d.setColor(Color.WHITE);
-	    String hillText = "HILLS: " + hillOptions[selectedHillIndex].toUpperCase();
-	    
-	    // Simple dynamic centering calculation for the text inside the box
-	    int textWidth = g2d.getFontMetrics().stringWidth(hillText);
-	    g2d.drawString(hillText, WIDTH / 2 - (textWidth / 2), box2Y + 37);
+		g2d.setColor(new Color(25, 30, 55));
+		g2d.fillRect(WIDTH / 2 - 150, box2Y, 300, 60);
+		// Highlight if selected
+		if (selectedMenuOption == 1)
+			g2d.setColor(Color.YELLOW);
+		else
+			g2d.setColor(Color.CYAN);
+		g2d.drawRect(WIDTH / 2 - 150, box2Y, 300, 60);
 
-	    // ==========================================
-	    // FOOTER
-	    // ==========================================
-	    g2d.setFont(new Font("Arial", Font.PLAIN, 18));
-	    g2d.setColor(Color.YELLOW);
-	    drawCenteredString(g2d, "PRESS ENTER TO START GAME", HEIGHT - 50);
+		// Draw the text dynamically from array
+		g2d.setFont(new Font("Arial", Font.BOLD, 20));
+		g2d.setColor(Color.WHITE);
+		String hillText = "HILLS: " + hillOptions[selectedHillIndex].toUpperCase();
+
+		// Simple dynamic centering calculation for the text inside the box
+		int textWidth = g2d.getFontMetrics().stringWidth(hillText);
+		g2d.drawString(hillText, WIDTH / 2 - (textWidth / 2), box2Y + 37);
+
+		// ==========================================
+		// FOOTER
+		// ==========================================
+		g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+		g2d.setColor(Color.YELLOW);
+		drawCenteredString(g2d, "PRESS ENTER TO START GAME", HEIGHT - 50);
 	}
 
 	private void drawGamePlay(Graphics2D g2d) {
@@ -508,29 +542,32 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Draw terrain
 		terrain.draw(g2d);
 
+		// Draw weather layers
+		weatherManager.draw(g2d);
+
 		// Draw all tanks
 		for (Tank t : players) {
 			t.draw(g2d);
 		}
-		
+
 		// Draw all exploding turrets
 		for (TurretDebris d : activeDebris) {
-		    d.draw(g2d);
+			d.draw(g2d);
 		}
 
 		// Draw projectiles if active
 		if (activeProjectile != null && activeProjectile.isActive()) {
 			activeProjectile.draw(g2d);
 		}
-		
+
 		// Draw explosions
 		for (Explosion exp : activeExplosions) {
-		    exp.draw(g2d);
+			exp.draw(g2d);
 		}
-		
+
 		// Draw damage numbers
 		for (FloatingText ft : floatingTexts) {
-		    ft.draw(g2d);
+			ft.draw(g2d);
 		}
 
 		// Draw UI Text
@@ -553,7 +590,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			}
 		}
 	}
-	
+
 	private void drawPauseMenu(Graphics2D g2d) {
 		// Add a semi-transparent overlay to dim the screen
 		g2d.setColor(new Color(0, 0, 0, 160));
@@ -566,9 +603,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 		// Options settings
 		g2d.setFont(new Font("Arial", Font.PLAIN, 24));
-		
+
 		// Draw Options Vertically
-		String[] options = {"Settings", "Exit Battle"};
+		String[] options = { "Settings", "Exit Battle" };
 		for (int i = 0; i < options.length; i++) {
 			if (i == selectedPauseOption) {
 				g2d.setColor(Color.CYAN);
@@ -591,20 +628,20 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		for (Tank t : players) {
 			t.draw(g2d);
 		}
-		
+
 		// Draw all exploding turrets
 		for (TurretDebris d : activeDebris) {
-		    d.draw(g2d);
+			d.draw(g2d);
 		}
-		
+
 		// Draw explosions
 		for (Explosion exp : activeExplosions) {
-		    exp.draw(g2d);
+			exp.draw(g2d);
 		}
-		
+
 		// Draw damage numbers
 		for (FloatingText ft : floatingTexts) {
-		    ft.draw(g2d);
+			ft.draw(g2d);
 		}
 
 		// Add a smoky dark veil to isolate the screen text
@@ -624,8 +661,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				winner = true;
 			}
 		}
-		
-		if(!winner) {
+
+		if (!winner) {
 			g2d.setColor(Color.WHITE);
 			g2d.drawString("DRAW!", WIDTH / 2 - 275, HEIGHT / 2 - 20);
 		}
@@ -646,59 +683,63 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		if (keyCode >= 0 && keyCode < keys.length) {
 			keys[keyCode] = true;
 		}
-		
+
 		// Main Menu commands
 		if (currentState == GameState.MAIN_MENU) {
-			
+
 			// UP key
 			if (keyCode == KeyEvent.VK_UP) {
 				SoundEngine.playMenuSelectSound();
 				selectedMenuOption = 0;
-	        }
-			
+			}
+
 			// DOWN key
-	        if (keyCode == KeyEvent.VK_DOWN) {
-	        	SoundEngine.playMenuSelectSound();
-	        	selectedMenuOption = 1;
-	        }
-	        
-	        // RIGHT key
-	        if (keyCode == KeyEvent.VK_RIGHT) {
-	        	SoundEngine.playMenuSelectSound();
-	            if (selectedMenuOption == 0 && selectedPlayerCount < 10) selectedPlayerCount++;
-	            else if (selectedMenuOption == 1 && selectedHillIndex < 3) selectedHillIndex++;
-	        }
-	        
-	        // LEFT key
-	        if (keyCode == KeyEvent.VK_LEFT) {
-	        	SoundEngine.playMenuSelectSound();
-	        	if (selectedMenuOption == 0 && selectedPlayerCount > 2) selectedPlayerCount--;
-	        	else if (selectedMenuOption == 1 && selectedHillIndex > 0) selectedHillIndex--;
-	        }
-			
+			if (keyCode == KeyEvent.VK_DOWN) {
+				SoundEngine.playMenuSelectSound();
+				selectedMenuOption = 1;
+			}
+
+			// RIGHT key
+			if (keyCode == KeyEvent.VK_RIGHT) {
+				SoundEngine.playMenuSelectSound();
+				if (selectedMenuOption == 0 && selectedPlayerCount < 10)
+					selectedPlayerCount++;
+				else if (selectedMenuOption == 1 && selectedHillIndex < 3)
+					selectedHillIndex++;
+			}
+
+			// LEFT key
+			if (keyCode == KeyEvent.VK_LEFT) {
+				SoundEngine.playMenuSelectSound();
+				if (selectedMenuOption == 0 && selectedPlayerCount > 2)
+					selectedPlayerCount--;
+				else if (selectedMenuOption == 1 && selectedHillIndex > 0)
+					selectedHillIndex--;
+			}
+
 			// ESCPAE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
 				System.exit(0);
-			
+
 			// ENTER Key
 			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 				SoundEngine.playMenuConfirmSound();
 				startNewGame();
 				currentState = GameState.PLAYING;
 			}
-			
+
 		}
-		
+
 		// Playing commands
 		else if (currentState == GameState.PLAYING) {
-			
+
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 				SoundEngine.stopMusic();
 				selectedPauseOption = 0;
 				currentState = GameState.PAUSED;
 			}
-			
+
 			// SPACE key
 			if (e.getKeyCode() == KeyEvent.VK_SPACE && !lockControls) {
 				boolean anyTankFalling = false;
@@ -706,11 +747,12 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 					if (t.applyGravity(terrain))
 						anyTankFalling = true;
 				}
-				
+
 				boolean explosionsRunning = !activeExplosions.isEmpty();
 
 				// Only fire if all other actions are complete
-				if ((activeProjectile == null || !activeProjectile.isActive()) && !anyTankFalling && !explosionsRunning) {
+				if ((activeProjectile == null || !activeProjectile.isActive()) && !anyTankFalling
+						&& !explosionsRunning) {
 					Tank currentTank = players.get(activePlayerIndex);
 
 					double rads = Math.toRadians(currentTank.getBarrelAngle());
@@ -724,7 +766,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				}
 			}
 		}
-		
+
 		// Pause Menu Commands
 		else if (currentState == GameState.PAUSED) {
 
@@ -761,10 +803,10 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				}
 			}
 		}
-		
+
 		// Game over commands
 		else if (currentState == GameState.GAME_OVER) {
-			
+
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 				SoundEngine.stopMusic();
@@ -798,13 +840,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			activePlayerIndex = (activePlayerIndex + 1) % players.size();
 		} while (!players.get(activePlayerIndex).isAlive()); // Keep moving if the tank is dead
 	}
-	
+
 	/**
 	 * Passes back a list of Tanks that are still alive.
 	 */
 	private List<Tank> getActivePlayers() {
 		List<Tank> activePlayers = new ArrayList<Tank>();
-		for (Tank tank: players) {
+		for (Tank tank : players) {
 			if (tank.isAlive())
 				activePlayers.add(tank);
 		}

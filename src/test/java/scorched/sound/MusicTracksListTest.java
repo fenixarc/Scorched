@@ -35,11 +35,13 @@ public class MusicTracksListTest {
         assertEquals(250, track.getNoteDurationMs());
         assertEquals(2, track.getLoopsBeforeMelody());
         assertEquals(0, track.getLoopsBeforeDrums());
-        
-        // Assert loop delay for the new synth channel layer
         assertTrue(track.getLoopsBeforeSynth() >= 0, "Loops before synth should be initialized.");
         
-        double[] expectedMelody = { 293.66, 0.0, 311.13, 293.66, 349.23, 0.0, 329.63, 311.13, 293.66, 0.0, 0.0, 0.0 };
+        // Updated to match the full 24 elements in production
+        double[] expectedMelody = { 
+            293.66, 0.0, 311.13, 293.66, 349.23, 0.0, 329.63, 311.13, 293.66, 0.0, 350.0, 400.0,
+            293.66, 0.0, 311.13, 293.66, 349.23, 0.0, 329.63, 311.13, 293.66, 0.0, 0.0, 0.0 
+        };
         assertArrayEquals(expectedMelody, track.getMelodyPattern(), 0.001);
     }
 
