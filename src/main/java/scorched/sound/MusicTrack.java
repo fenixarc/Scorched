@@ -3,6 +3,7 @@ package scorched.sound;
 public class MusicTrack {
 	private final String name;
 	private final int noteDurationMs;
+	private final double bassVolumeModifier;
 	
 	// Audio Patterns
 	private final double[] bassPattern;
@@ -22,6 +23,7 @@ public class MusicTrack {
 	private MusicTrack(Builder builder) {
 		this.name = builder.name;
 		this.noteDurationMs = builder.noteDurationMs;
+		this.bassVolumeModifier = builder.bassVolumeModifier;
 		this.bassPattern = builder.bassPattern;
 		this.loopsBeforeBass = builder.loopsBeforeBass;
 		this.melodyPattern = builder.melodyPattern;
@@ -38,6 +40,7 @@ public class MusicTrack {
 	public static class Builder {
 		private final String name;
 		private int noteDurationMs = 125; // Default fallback value
+		private double bassVolumeModifier = 75; // Default bass volume
 		
 		private double[] bassPattern;
 		private int loopsBeforeBass = 0;
@@ -66,6 +69,11 @@ public class MusicTrack {
 			this.loopsBeforeBass = loopsBeforeStart;
 			return this;
 		}
+		
+		public Builder setBassVolumeModifier(double modifier) {
+            this.bassVolumeModifier = modifier;
+            return this;
+        }
 
 		public Builder setMelody(double[] pattern, int loopsBeforeStart) {
 			this.melodyPattern = pattern;
@@ -134,4 +142,8 @@ public class MusicTrack {
 	public int getLoopsBeforeSynth() {
 		return loopsBeforeSynth;
 	}
+	
+	public double getBassVolumeModifier() {
+        return bassVolumeModifier;
+    }
 }

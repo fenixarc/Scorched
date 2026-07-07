@@ -97,6 +97,11 @@ public class SoundEngine {
 
 					boolean synthActive = (synthPattern != null && synthPattern.length > 0) 
 							&& (currentGlobalLoop >= track.getLoopsBeforeSynth());
+					
+					System.out.println("bassActive = " + bassActive
+							+ " melodyActive = " + melodyActive
+							+ " drumsActive = " + drumsActive
+							+ " synthActive = " + synthActive);
 
 					// --- 3. FETCH PATTERN INDICES AND LOOK-AHEAD LOGIC ---
 					int bassIndex   = (bassActive)   ? (int)(totalSteps % bassPattern.length)   : 0;
@@ -129,7 +134,7 @@ public class SoundEngine {
 						// CHANNEL 1: Bassline (Sine Wave)
 						if (bassActive && bassFreq > 0.0) {
 							double bassAngle = 2.0 * Math.PI * bassFreq * i / SAMPLE_RATE;
-							totalSignal += Math.sin(bassAngle) * 75 * volumeEnvelope;
+							totalSignal += Math.sin(bassAngle) * track.getBassVolumeModifier() * volumeEnvelope;
 						}
 
 						// CHANNEL 2: Melody Lead (Square Wave)
