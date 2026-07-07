@@ -1,11 +1,13 @@
 package scorched.game;
+
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.Random;
 
 public class Terrain {
 
-	private boolean[][] solidGrid;
+	// Changed from boolean[][] to Color[][] to store persistent color data per pixel
+	private Color[][] terrainGrid;
 	private int screenWidth;
 	private int screenHeight;
 	private Color dirtColor;
@@ -15,14 +17,14 @@ public class Terrain {
 	public Terrain(int screenWidth, int screenHeight, Color dirtColor, int hillStrength) {
 		this.screenWidth = screenWidth;
 		this.screenHeight = screenHeight;
-		this.solidGrid = new boolean[screenWidth][screenHeight];
+		this.terrainGrid = new Color[screenWidth][screenHeight]; // null represents empty sky/air
 		this.dirtColor = dirtColor;
 
 		generateTerrain(hillStrength);
 	}
 
 	/**
-	 * Generates a randomized set of rolling hills and fills the 2D grid.
+	 * Generates a randomized set of rolling hills and fills the 2D grid with layered shades.
 	 * @param hillStrength 1 = standard rolling hills, 2 = large hills/valleys, 3 = extreme jagged cliffs
 	 */
 	private void generateTerrain(int hillStrength) {
@@ -37,12 +39,10 @@ public class Terrain {
 		double offset2 = rand.nextDouble() * 10000;
 		double offset3 = rand.nextDouble() * 10000;
 
-		// Default base parameters (hillStrength == 1)
 		double largeHillsVariance = screenHeight * (0.08 + rand.nextDouble() * 0.12); // Large hills height variance
 		double mediumHillsVariance = screenHeight * (0.02 + rand.nextDouble() * 0.04); // Medium hills height variance
-		double jaggednessIntensity = 3 + rand.nextInt(6); // Jaggedness intensity
+		double jaggednessIntensity = 3 + rand.nextInt(6);  // Jaggedness intensity
 		
-		// Frequency multipliers to control horizontal stretching/crunching
 		double freq1 = 0.002;
 		double freq2 = 0.01;
 		double freq3 = 0.03;
@@ -58,30 +58,26 @@ public class Terrain {
 			largeHillsVariance *= 3.0;
 			mediumHillsVariance *= 2.5;
 			jaggednessIntensity *= 8.0; // Heavily amplifies the jagged wave texture
-			
 			freq1 *= 1.5; // Crunches waves together for steeper slopes
 			freq3 *= 1.2; // Makes cliffs look sharper and more chaotic
 		}
 
+		// Define persistent shade variations based on altitude tiers
+		Color grassColor = new Color(34, 139, 34);
+		Color lightShade = dirtColor.brighter().brighter();
+		Color mediumShade = dirtColor.brighter();
+		Color darkShade = dirtColor;
+		Color deepShade = dirtColor.darker();
+
 		// Calculate the height array column-by-column
 		for (int x = 0; x < screenWidth; x++) {
-			// Large rolling peaks
 			double wave1 = Math.sin((x + offset1) * freq1) * largeHillsVariance;
-			// Secondary hills
 			double wave2 = Math.sin((x + offset2) * freq2) * mediumHillsVariance;
-			// Jagged terrain texture
 			double wave3 = Math.cos((x + offset3) * freq3) * jaggednessIntensity;
 
 			// Combine calculations into the column height index
 			int surfaceY = (int) (baselineY - (wave1 + wave2 + wave3));
 
-			// --- Bounds enforcement with 40px buffer ---
-			/*
-			 * // Cannot go below the bottom of the screen (-40px buffer) if (surfaceY >
-			 * screenHeight - 40) { surfaceY = screenHeight - 40; } // Cannot go above the
-			 * top of the screen (+60px buffer) if (surfaceY < 60) { surfaceY = 60; }
-			 */
-			
 			// --- Graceful Bounds Enforcement (Reflection) ---
 			int minY = 60;
 			int maxY = screenHeight - 40;
@@ -90,6 +86,7 @@ public class Terrain {
 			if (surfaceY < minY) {
 			    surfaceY = minY + (minY - surfaceY);
 			}
+			
 			// Reflect off the floor
 			if (surfaceY > maxY) {
 			    surfaceY = maxY - (surfaceY - maxY);
@@ -98,34 +95,47 @@ public class Terrain {
 			// Safety double-check in case Tier 3 variance is utterly massive
 			surfaceY = Math.clamp(surfaceY, minY, maxY);
 
-			// Render column
+			// Render column using deep-relative shading bands
 			for (int y = surfaceY; y < screenHeight; y++) {
-				solidGrid[x][y] = true;
+			    int depth = y - surfaceY; // Distance from the very top of the hill at this column
+
+			    if (depth < 4) {
+			        terrainGrid[x][y] = grassColor;  // Top 4 pixels are always grass
+			    } else if (depth < 60) {
+			        terrainGrid[x][y] = lightShade;  // Subsurface dirt layer
+			    } else if (depth < 140) {
+			        terrainGrid[x][y] = mediumShade; // Mid-depth soil
+			    } else if (depth < 300) {
+			        terrainGrid[x][y] = darkShade;   // Deep underground layer
+			    } else {
+			        terrainGrid[x][y] = deepShade;   // Core bedrock layer
+			    }
 			}
 		}
 	}
 
 	/**
-	 * PER-FRAME UPDATE: Shifts floating dirt down by GRAVITY pixels.
+	 * PER-FRAME UPDATE: Shifts floating dirt down by GRAVITY pixels, carrying its Color property with it.
 	 * @return true if terrain is still falling/settling, false if completely stable.
 	 */
 	public boolean update() {
 	    boolean terrainMoved = false;
 	    for (int x = 0; x < screenWidth; x++) {
 	        for (int y = screenHeight - 1 - GRAVITY; y >= 0; y--) {
-	            if (solidGrid[x][y]) {
-	                // Find how far we can fall, up to GRAVITY pixels
+	            if (terrainGrid[x][y] != null) {
+	            	// Find how far we can fall, up to GRAVITY pixels
 	                int fallDistance = 0;
 	                for (int d = 1; d <= GRAVITY; d++) {
-	                    if (!solidGrid[x][y + d]) {
+	                    if (terrainGrid[x][y + d] == null) {
 	                        fallDistance = d;
 	                    } else {
 	                        break;
 	                    }
 	                }
 	                if (fallDistance > 0) {
-	                    solidGrid[x][y + fallDistance] = true;
-	                    solidGrid[x][y] = false;
+	                    // The color physical property moves down to the new location
+	                    terrainGrid[x][y + fallDistance] = terrainGrid[x][y];
+	                    terrainGrid[x][y] = null;
 	                    terrainMoved = true; // Terrain is still collapsing
 	                }
 	            }
@@ -135,37 +145,41 @@ public class Terrain {
 	}
 
 	/**
-	 * Renders the terrain by drawing optimized vertical spans of dirt.
+	 * Renders the terrain by grouping sequential pixels of identical colors into single line-draw batches.
 	 */
 	public void draw(Graphics2D g2d) {
 		for (int x = 0; x < screenWidth; x++) {
 			int spanStart = -1;
+			Color currentSpanColor = null;
 
 			for (int y = 0; y < screenHeight; y++) {
-				if (solidGrid[x][y]) {
+				Color pixelColor = terrainGrid[x][y];
+
+				if (pixelColor != null) {
 					if (spanStart == -1) {
 						spanStart = y;
-						
-						// Green grass on top of any exposed upper layer
-						g2d.setColor(Color.GREEN);
-						g2d.fillRect(x, spanStart, 1, Math.min(4, screenHeight - spanStart));
-						g2d.setColor(dirtColor);
+						currentSpanColor = pixelColor;
+					} else if (!pixelColor.equals(currentSpanColor)) {
+						// Flush line segment because color changed
+						g2d.setColor(currentSpanColor);
+						g2d.drawLine(x, spanStart, x, y - 1);
+						spanStart = y;
+						currentSpanColor = pixelColor;
 					}
 				} else {
 					if (spanStart != -1) {
-						int drawStart = Math.min(spanStart + 4, screenHeight);
-						if (y > drawStart) {
-							g2d.drawLine(x, drawStart, x, y - 1);
-						}
+						// Flush line segment because we hit empty space
+						g2d.setColor(currentSpanColor);
+						g2d.drawLine(x, spanStart, x, y - 1);
 						spanStart = -1;
+						currentSpanColor = null;
 					}
 				}
 			}
+			// Final flush for the bottom boundary of the screen
 			if (spanStart != -1) {
-				int drawStart = Math.min(spanStart + 4, screenHeight);
-				if (screenHeight - 1 >= drawStart) {
-					g2d.drawLine(x, drawStart, x, screenHeight - 1);
-				}
+				g2d.setColor(currentSpanColor);
+				g2d.drawLine(x, spanStart, x, screenHeight - 1);
 			}
 		}
 	}
@@ -178,7 +192,7 @@ public class Terrain {
 		if (x >= screenWidth) x = screenWidth - 1;
 
 		for (int y = 0; y < screenHeight; y++) {
-			if (solidGrid[x][y]) {
+			if (terrainGrid[x][y] != null) {
 				return y;
 			}
 		}
@@ -186,8 +200,7 @@ public class Terrain {
 	}
 
 	/**
-	 * Destroys a circle of pixels. Gravity calculations are handled entirely 
-	 * by the update loop over subsequent frames.
+	 * Destroys a circle of pixels, leaving behind an empty space (null).
 	 */
 	public void explode(int centerX, int centerY, int radius) {
 		int startX = Math.max(0, centerX - radius);
@@ -201,7 +214,7 @@ public class Terrain {
 				int dy = y - centerY;
 				
 				if ((dx * dx) + (dy * dy) <= (radius * radius)) {
-					solidGrid[x][y] = false; 
+					terrainGrid[x][y] = null; 
 				}
 			}
 		}
@@ -209,14 +222,15 @@ public class Terrain {
 
 	/**
 	 * Checks if the terrain is solid at the given coordinates.
-	 * @param x
-	 * @param y
-	 * @return
 	 */
 	public boolean isSolidAt(double x, double y) {
-		return solidGrid[(int) x][(int) y];
+		int ix = (int) x;
+		int iy = (int) y;
+		if (ix < 0 || ix >= screenWidth || iy < 0 || iy >= screenHeight) {
+			return false;
+		}
+		return terrainGrid[ix][iy] != null;
 	}
-	
 	
 	public int getScreenWidth() {
 		return screenWidth;
