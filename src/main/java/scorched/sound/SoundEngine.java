@@ -98,10 +98,11 @@ public class SoundEngine {
 					boolean synthActive = (synthPattern != null && synthPattern.length > 0) 
 							&& (currentGlobalLoop >= track.getLoopsBeforeSynth());
 					
-					System.out.println("bassActive = " + bassActive
-							+ " melodyActive = " + melodyActive
-							+ " drumsActive = " + drumsActive
-							+ " synthActive = " + synthActive);
+					// Song debugging
+//					System.out.println("bassActive = " + bassActive
+//							+ " melodyActive = " + melodyActive
+//							+ " drumsActive = " + drumsActive
+//							+ " synthActive = " + synthActive);
 
 					// --- 3. FETCH PATTERN INDICES AND LOOK-AHEAD LOGIC ---
 					int bassIndex   = (bassActive)   ? (int)(totalSteps % bassPattern.length)   : 0;
