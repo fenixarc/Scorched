@@ -270,14 +270,18 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			if (weatherManager.hasStrikeImpacted()) {
 				int lx = weatherManager.getStrikeX();
 				int ly = weatherManager.getStrikeY();
-				int strikeRadius = 10; // Size of lightning impact crater
-				int maxStrikeDamage = 10; // Minor damage cap
+				int strikeRadius = 15; // Size of impact crater
+				int maxStrikeDamage = 15; // Damage cap
+				
+				if (weatherManager.getCurrentType() == WeatherManager.WeatherType.METEOR_SHOWER) {
+			        weatherManager.consumeStrike(); // Reset the trigger flat
+			    }
 
 				// Trigger visual explosion and explode terrain instantly
 	            activeExplosions.add(new Explosion(lx, ly));
 	            terrain.explode(lx, ly, strikeRadius);
 
-	            // Apply minor splash damage to any nearby tanks
+	            // Apply splash damage to any nearby tanks
 	            for (Tank t : players) {
 	                if (t.isAlive()) {
 	                    double dist = Math.hypot(t.getX() - lx, t.getY() - ly);
@@ -735,7 +739,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-				SoundEngine.stopMusic();
+				//SoundEngine.stopMusic();
+				SoundEngine.playPauseSound();
 				selectedPauseOption = 0;
 				currentState = GameState.PAUSED;
 			}
@@ -772,7 +777,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 			// ESCAPE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-				SoundEngine.startMusic(currentBattleTrack);
+				//SoundEngine.startMusic(currentBattleTrack);
+				SoundEngine.playUnpauseSound();
 				currentState = GameState.PLAYING;
 			}
 
