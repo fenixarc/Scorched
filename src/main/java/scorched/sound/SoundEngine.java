@@ -7,6 +7,12 @@ import java.util.Random;
 public class SoundEngine {
 
 	private static final int SAMPLE_RATE = 16000; // 16kHz audio quality
+	
+	// Audio override variables controlled by the settings menu
+	public static int musicVolume = 7;     // Scale from 1 to 10
+	public static int soundVolume = 7;     // Scale from 1 to 10
+	public static boolean muteMusic = false;
+	public static boolean muteSound = false;
 
 	// Volatile flag allows different threads to safely communicate when to stop the
 	// music
@@ -18,6 +24,7 @@ public class SoundEngine {
 	 * thread.
 	 */
 	private static void playGeneratedSound(byte[] buffer) {
+		if (muteSound) return; // Sound override check
 		new Thread(() -> {
 			try {
 				// 16,000 samples per second, 8-bit mono
@@ -29,7 +36,15 @@ public class SoundEngine {
 				line.open(format, tinyBufferSize);
 
 				line.start();
-				line.write(buffer, 0, buffer.length);
+
+				// Apply volume scaling override to the buffer
+				byte[] scaledBuffer = new byte[buffer.length];
+				double volumeScale = soundVolume / 10.0;
+				for (int i = 0; i < buffer.length; i++) {
+					scaledBuffer[i] = (byte) (buffer[i] * volumeScale);
+				}
+				
+				line.write(scaledBuffer, 0, scaledBuffer.length);
 				line.drain();
 				line.close();
 			} catch (Exception e) {
@@ -168,6 +183,14 @@ public class SoundEngine {
 							
 							totalSignal += triangleWave * 15 * synthEnvelope;
 						}
+						
+						// Apply global music settings override
+						if (muteMusic) {
+							totalSignal = 0.0;
+						} else {
+							totalSignal *= (musicVolume / 10.0);
+						}
+
 
 						// Protect audio driver from overflow clipping bounds
 						if (totalSignal > 127)  totalSignal = 127;
@@ -267,82 +290,69 @@ public class SoundEngine {
 	 * Simulates an initial supersonic shockwave, shattering metal, and a deep secondary rumble.
 	 */
 	public static void playFallDamageSound() {
-	    new Thread(() -> {
-	        try {
-	            // Extended to 800ms to let the massive sub-bass rumble decay naturally
-	            int durationMs = 800;
-	            int totalSamples = (SAMPLE_RATE * durationMs) / 1000;
-	            byte[] buffer = new byte[totalSamples];
-	            java.util.Random rand = new java.util.Random();
+		// Extended to 800ms to let the massive sub-bass rumble decay naturally
+		int durationMs = 800;
+		int totalSamples = (SAMPLE_RATE * durationMs) / 1000;
+		byte[] buffer = new byte[totalSamples];
+		java.util.Random rand = new java.util.Random();
 
-	            // We track an internal phase angle for our low-frequency sound generators
-	            double rumblePhase = 0.0;
+		// We track an internal phase angle for our low-frequency sound generators
+		double rumblePhase = 0.0;
 
-	            for (int i = 0; i < totalSamples; i++) {
-	                double progress = (double) i / totalSamples;
-	                double msElapsed = (double) i / SAMPLE_RATE * 1000.0;
+		for (int i = 0; i < totalSamples; i++) {
+			double progress = (double) i / totalSamples;
+			double msElapsed = (double) i / SAMPLE_RATE * 1000.0;
 
-	                double signal = 0.0;
+			double signal = 0.0;
 
-	                // LAYER 1: The Supersonic Shockwave (First 60 milliseconds)
-	                if (msElapsed < 60) {
-	                    // Maximum pressure white noise with zero decay to clip the audio line aggressively
-	                    signal += (rand.nextDouble() * 2.0 - 1.0) * 1.2;
-	                }
+			// LAYER 1: The Supersonic Shockwave (First 60 milliseconds)
+			if (msElapsed < 60) {
+				// Maximum pressure white noise with zero decay to clip the audio line aggressively
+				signal += (rand.nextDouble() * 2.0 - 1.0) * 1.2;
+			}
 
-	                // LAYER 2: Tearing Metal & Fire (First 250 milliseconds)
-	                if (msElapsed < 250) {
-	                    double noise = rand.nextDouble() * 2.0 - 1.0;
-	                    
-	                    // High-frequency square-ish crunch representing structural hull failure
-	                    double metalCrack = (Math.sin(i * 0.4) >= 0.0) ? 0.4 : -0.4;
-	                    
-	                    // Rapid volume fade out just for this metallic layer
-	                    double metalEnvelope = Math.pow(1.0 - (msElapsed / 250.0), 2);
-	                    
-	                    signal += (noise * 0.6 + metalCrack * 0.4) * metalEnvelope;
-	                }
+			// LAYER 2: Tearing Metal & Fire (First 250 milliseconds)
+			if (msElapsed < 250) {
+				double noise = rand.nextDouble() * 2.0 - 1.0;
+				
+				// High-frequency square-ish crunch representing structural hull failure
+				double metalCrack = (Math.sin(i * 0.4) >= 0.0) ? 0.4 : -0.4;
+				
+				// Rapid volume fade out just for this metallic layer
+				double metalEnvelope = Math.pow(1.0 - (msElapsed / 250.0), 2);
+				
+				signal += (noise * 0.6 + metalCrack * 0.4) * metalEnvelope;
+			}
 
-	                // LAYER 3: The Expanding Fuel Cook-Off & Deep Sub-Bass Rumble (Whole Duration)
-	                // The frequency rapidly drops over time: starts at 90Hz and plunges down to an ultra-low 25Hz rumble
-	                double currentFreq = 90.0 * Math.pow(1.0 - progress, 3) + 25.0;
-	                rumblePhase += (2.0 * Math.PI * currentFreq) / SAMPLE_RATE;
-	                
-	                // Pure sine wave for that deep, chest-hitting sub-bass structure
-	                double subBass = Math.sin(rumblePhase);
-	                
-	                // Modulate the sub-bass with white noise to make it sound dirty and explosive
-	                double dirtyRumble = subBass * 0.5 + (subBass * (rand.nextDouble() * 2.0 - 1.0) * 0.5);
-	                
-	                // Long, smooth exponential decay envelope for the final rumble trail
-	                double rumbleEnvelope = Math.pow(1.0 - progress, 4);
-	                
-	                signal += dirtyRumble * 1.0 * rumbleEnvelope;
+			// LAYER 3: The Expanding Fuel Cook-Off & Deep Sub-Bass Rumble (Whole Duration)
+			// The frequency rapidly drops over time: starts at 90Hz and plunges down to an ultra-low 25Hz rumble
+			double currentFreq = 90.0 * Math.pow(1.0 - progress, 3) + 25.0;
+			rumblePhase += (2.0 * Math.PI * currentFreq) / SAMPLE_RATE;
+			
+			// Pure sine wave for that deep, chest-hitting sub-bass structure
+			double subBass = Math.sin(rumblePhase);
+			
+			// Modulate the sub-bass with white noise to make it sound dirty and explosive
+			double dirtyRumble = subBass * 0.5 + (subBass * (rand.nextDouble() * 2.0 - 1.0) * 0.5);
+			
+			// Long, smooth exponential decay envelope for the final rumble trail
+			double rumbleEnvelope = Math.pow(1.0 - progress, 4);
+			
+			signal += dirtyRumble * 1.0 * rumbleEnvelope;
 
-	                // --- MASTER SATURATION & DRIVE BLOCK ---
-	                // Amplify the mixed layers significantly to force digital distortion/overdrive
-	                double highGainSignal = signal * 75.0;
+			// --- MASTER SATURATION & DRIVE BLOCK ---
+			// Amplify the mixed layers significantly to force digital distortion/overdrive
+			double highGainSignal = signal * 75.0;
 
-	                // Hard clipping limits to protect the hardware buffer and create a gritty 8-bit distortion punch
-	                if (highGainSignal > 127) highGainSignal = 127;
-	                if (highGainSignal < -128) highGainSignal = -128;
+			// Hard clipping limits to protect the hardware buffer and create a gritty 8-bit distortion punch
+			if (highGainSignal > 127) highGainSignal = 127;
+			if (highGainSignal < -128) highGainSignal = -128;
 
-	                buffer[i] = (byte) highGainSignal;
-	            }
+			buffer[i] = (byte) highGainSignal;
+		}
 
-	            // Stream the high-intensity data array to the system audio hardware
-	            AudioFormat format = new AudioFormat(SAMPLE_RATE, 8, 1, true, false);
-	            SourceDataLine line = AudioSystem.getSourceDataLine(format);
-	            line.open(format, 1024);
-	            line.start();
-	            line.write(buffer, 0, buffer.length);
-	            line.drain();
-	            line.close();
-
-	        } catch (Exception e) {
-	            e.printStackTrace();
-	        }
-	    }).start();
+		// Pass the synthesized buffer off to the central asynchronous sound engine player
+		playGeneratedSound(buffer);
 	}
 	
 	/**

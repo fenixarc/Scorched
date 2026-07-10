@@ -35,7 +35,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	// Game States
 	enum GameState {
-		MAIN_MENU, PLAYING, PAUSED, GAME_OVER, BUYING
+		MAIN_MENU, PLAYING, PAUSED, GAME_OVER, BUYING, SETTINGS
 	}
 
 	private GameState currentState = GameState.MAIN_MENU;
@@ -43,6 +43,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	// Pause Menu Selection (0 = Settings, 1 = Exit Battle)
 	private int selectedPauseOption;
+	
+	// Settings Menu Selection (0 = Music Vol, 1 = Sound Vol, 2 = Mute Music, 3 = Mute Sound, 4 = Back)
+	private int selectedSettingsOption;
 
 	// Main Menu
 	private BufferedImage splashImage;
@@ -118,6 +121,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	public void startNewGame() {
 		isGeneratingWorld = true;
 		selectedPauseOption = 0;
+		selectedSettingsOption = 0;
 
 		// Pick a random environment bundle
 		java.util.Random rand = new java.util.Random();
@@ -236,7 +240,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	}
 
 	private void update() {
-		if (currentState == GameState.PAUSED) {
+		if (currentState == GameState.PAUSED || currentState == GameState.SETTINGS) {
 			return;
 		}
 
@@ -458,6 +462,10 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			drawGamePlay(g2d);
 			drawPauseMenu(g2d);
 			break;
+		case SETTINGS:
+			drawGamePlay(g2d);
+			drawSettingsMenu(g2d);
+			break;
 		case GAME_OVER:
 			drawEndScreen(g2d);
 			break;
@@ -633,6 +641,48 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 					int textY = boxY + 37; // Centers text baseline vertically inside the 60px box
 					g2d.drawString(options[i], textX, textY);
 				}
+	}
+	
+	private void drawSettingsMenu(Graphics2D g2d) {
+		g2d.setColor(new Color(0, 0, 0, 160));
+		g2d.fillRect(0, 0, WIDTH, HEIGHT);
+
+		// Render Settings Title
+		g2d.setFont(new Font("Arial", Font.BOLD, 36));
+		g2d.setColor(Color.YELLOW);
+		g2d.drawString("SETTINGS", WIDTH / 2 - 95, HEIGHT / 2 - 190);
+
+		g2d.setFont(new Font("Arial", Font.BOLD, 20));
+		
+		// Map our internal properties out to text declarations
+		String[] options = {
+			"MUSIC VOLUME: " + SoundEngine.musicVolume,
+			"SOUND VOLUME: " + SoundEngine.soundVolume,
+			"MUTE MUSIC: [ " + (SoundEngine.muteMusic ? "X" : " ") + " ]",
+			"MUTE SOUND: [ " + (SoundEngine.muteSound ? "X" : " ") + " ]",
+			"BACK"
+		};
+
+		for (int i = 0; i < options.length; i++) {
+			// Offset options safely starting higher up to anchor 5 vertical options cleanly
+			int boxY = HEIGHT / 2 - 130 + (i * 70);
+
+			g2d.setColor(new Color(25, 30, 55));
+			g2d.fillRect(WIDTH / 2 - 165, boxY, 330, 50);
+
+			if (i == selectedSettingsOption) {
+				g2d.setColor(Color.YELLOW);
+			} else {
+				g2d.setColor(Color.CYAN);
+			}
+			g2d.drawRect(WIDTH / 2 - 165, boxY, 330, 50);
+
+			g2d.setColor(Color.WHITE);
+			FontMetrics fm = g2d.getFontMetrics();
+			int textX = WIDTH / 2 - (fm.stringWidth(options[i]) / 2);
+			int textY = boxY + 31;
+			g2d.drawString(options[i], textX, textY);
+		}
 	}
 
 	private void drawEndScreen(Graphics2D g2d) {
@@ -811,15 +861,74 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// ENTER Key
 			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 				if (selectedPauseOption == 0) {
-					// Placeholder for Settings menu actions
 					SoundEngine.playMenuConfirmSound();
-					System.out.println("Settings Screen Selected");
+					selectedSettingsOption = 0;
+					currentState = GameState.SETTINGS;
 				} else if (selectedPauseOption == 1) {
-					// Exit battle back to Main Menu
 					SoundEngine.playMenuConfirmSound();
 					SoundEngine.stopMusic();
 					currentState = GameState.MAIN_MENU;
 					SoundEngine.startMusic(MusicTracksList.MENU_THEME);
+				}
+			}
+		}
+		
+		// Settings Menu Commands
+		else if (currentState == GameState.SETTINGS) {
+			
+			// ESCAPE Key
+			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+				SoundEngine.playMenuConfirmSound();
+				currentState = GameState.PAUSED;
+			}
+
+			// UP Key
+			if (e.getKeyCode() == KeyEvent.VK_UP) {
+				SoundEngine.playMenuSelectSound();
+				selectedSettingsOption--;
+				if (selectedSettingsOption < 0) {
+					selectedSettingsOption = 4; // Wrap around to back
+				}
+			}
+
+			// DOWN Key
+			if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+				SoundEngine.playMenuSelectSound();
+				selectedSettingsOption++;
+				if (selectedSettingsOption > 4) {
+					selectedSettingsOption = 0; // Wrap around to top
+				}
+			}
+
+			// RIGHT Key
+			if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
+				SoundEngine.playMenuSelectSound();
+				if (selectedSettingsOption == 0 && SoundEngine.musicVolume < 10) {
+					SoundEngine.musicVolume++;
+				} else if (selectedSettingsOption == 1 && SoundEngine.soundVolume < 10) {
+					SoundEngine.soundVolume++;
+				}
+			}
+
+			// LEFT Key
+			if (e.getKeyCode() == KeyEvent.VK_LEFT) {
+				SoundEngine.playMenuSelectSound();
+				if (selectedSettingsOption == 0 && SoundEngine.musicVolume > 1) {
+					SoundEngine.musicVolume--;
+				} else if (selectedSettingsOption == 1 && SoundEngine.soundVolume > 1) {
+					SoundEngine.soundVolume--;
+				}
+			}
+
+			// ENTER Key
+			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+				SoundEngine.playMenuConfirmSound();
+				if (selectedSettingsOption == 2) {
+					SoundEngine.muteMusic = !SoundEngine.muteMusic;
+				} else if (selectedSettingsOption == 3) {
+					SoundEngine.muteSound = !SoundEngine.muteSound;
+				} else if (selectedSettingsOption == 4) {
+					currentState = GameState.PAUSED;
 				}
 			}
 		}
