@@ -605,20 +605,34 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		g2d.setColor(Color.YELLOW);
 		g2d.drawString("GAME PAUSED", WIDTH / 2 - 120, HEIGHT / 2 - 80);
 
-		// Options settings
-		g2d.setFont(new Font("Arial", Font.PLAIN, 24));
+		// Style configuration matching the Main Menu
+				String[] options = { "SETTINGS", "EXIT BATTLE" };
+				g2d.setFont(new Font("Arial", Font.BOLD, 24));
 
-		// Draw Options Vertically
-		String[] options = { "Settings", "Exit Battle" };
-		for (int i = 0; i < options.length; i++) {
-			if (i == selectedPauseOption) {
-				g2d.setColor(Color.CYAN);
-				g2d.drawString("> " + options[i] + " <", WIDTH / 2 - 70, HEIGHT / 2 - 10 + (i * 45));
-			} else {
-				g2d.setColor(Color.WHITE);
-				g2d.drawString(options[i], WIDTH / 2 - 45, HEIGHT / 2 - 10 + (i * 45));
-			}
-		}
+				// Draw Options Vertically using Main Menu stylized boxes
+				for (int i = 0; i < options.length; i++) {
+					// Calculate vertical position to match main menu box pacing (60px height + 20px gap)
+					int boxY = HEIGHT / 2 - 15 + (i * 80);
+
+					// 1. Draw Background Box
+					g2d.setColor(new Color(25, 30, 55));
+					g2d.fillRect(WIDTH / 2 - 150, boxY, 300, 60);
+
+					// 2. Highlight border based on selection
+					if (i == selectedPauseOption) {
+						g2d.setColor(Color.YELLOW);
+					} else {
+						g2d.setColor(Color.CYAN);
+					}
+					g2d.drawRect(WIDTH / 2 - 150, boxY, 300, 60);
+
+					// 3. Draw perfectly centered white text inside the box
+					g2d.setColor(Color.WHITE);
+					FontMetrics fm = g2d.getFontMetrics();
+					int textX = WIDTH / 2 - (fm.stringWidth(options[i]) / 2);
+					int textY = boxY + 37; // Centers text baseline vertically inside the 60px box
+					g2d.drawString(options[i], textX, textY);
+				}
 	}
 
 	private void drawEndScreen(Graphics2D g2d) {
