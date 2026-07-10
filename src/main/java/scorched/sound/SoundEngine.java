@@ -25,7 +25,7 @@ public class SoundEngine {
 				SourceDataLine line = AudioSystem.getSourceDataLine(format);
 
 				// Force Java to dump the sound to speakers immediately
-				int tinyBufferSize = 256;
+				int tinyBufferSize = 1024;
 				line.open(format, tinyBufferSize);
 
 				line.start();
@@ -609,6 +609,129 @@ public class SoundEngine {
 			if (finalSignal < -128) finalSignal = -128;
 
 			buffer[i] = (byte) finalSignal;
+		}
+		playGeneratedSound(buffer);
+	}
+	
+	/**
+	 * Synthesizes a massive, celestial impact sound effect.
+	 * Features a high-velocity descending phase sweep (the meteor entry)
+	 * followed by a saturated low-frequency kinetic white noise explosion.
+	 */
+	public static void playMeteorStrikeSound() {
+		int durationMs = 1100; // 1.1 seconds of destructive entry and impact
+		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		byte[] buffer = new byte[numSamples];
+		Random random = new Random();
+
+		// The entry streak phase lasts for the first 250 milliseconds
+		int entrySamples = (SAMPLE_RATE * 250) / 1000; 
+		double lowPassFilter = 0.0;
+
+		for (int i = 0; i < numSamples; i++) {
+			double msElapsed = (double) i / SAMPLE_RATE * 1000.0;
+
+			double signal = 0.0;
+			double rawNoise = random.nextInt(256) - 128; // Raw white noise source
+
+			// --- PHASE 1: THE INCOMING PLASMA ENTRY STREAK ---
+			if (i < entrySamples) {
+				double entryProgress = (double) i / entrySamples;
+				
+				// Rapidly descending whistling sweep (starts at 1800Hz, drops to 150Hz)
+				double entryFreq = 1800.0 * Math.pow(1.0 - entryProgress, 2) + 150.0;
+				double entryAngle = 2.0 * Math.PI * entryFreq * i / SAMPLE_RATE;
+				
+				// Triangle wave for a clean but piercing friction whistle tone
+				double whistleWave = (Math.abs((entryAngle % (2.0 * Math.PI)) - Math.PI) / Math.PI) * 2.0 - 1.0;
+				
+				// Mix tone with high-pass filtered friction hiss
+				signal += (whistleWave * 0.4 + (rawNoise * 0.3)) * entryProgress;
+			}
+
+			// --- PHASE 2: THE KINETIC IMPACT & SURFACE CRUSH ---
+			// Triggers right at the 250ms threshold
+			if (msElapsed >= 250.0) {
+				double impactProgress = (msElapsed - 250.0) / (durationMs - 250.0);
+				
+				// Heavy low-pass filter mapping for ground displacement rumble
+				lowPassFilter = lowPassFilter * 0.88 + rawNoise * 0.12;
+				
+				// Exponential volume drop-off as the shockwave disperses
+				double impactEnvelope = Math.pow(1.0 - impactProgress, 3);
+				
+				signal += lowPassFilter * 1.5 * impactEnvelope;
+			}
+
+			// --- MASTER DIGITAL SATURATION DRIVE ---
+			// Amplify to maximize the 8-bit clipping texture
+			double masterSignal = signal * 1.4;
+
+			if (masterSignal > 127)  masterSignal = 127;
+			if (masterSignal < -128) masterSignal = -128;
+
+			buffer[i] = (byte) masterSignal;
+		}
+
+		playGeneratedSound(buffer);
+	}
+	
+	/**
+	 * Synthesizes a crisp, clear 8-bit chime mimicking a game pause event.
+	 * Drops rapidly between two clean, high-register frequencies with a tight
+	 * volume envelope to ensure an instant, responsive interface feel.
+	 */
+	public static void playPauseSound() {
+		int durationMs = 120; // Short and distinct
+		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		byte[] buffer = new byte[numSamples];
+
+		for (int i = 0; i < numSamples; i++) {
+			double progress = (double) i / numSamples;
+			
+			// Two distinct steps: starts bright at 900Hz, then drops to 700Hz halfway through
+			double frequency = (progress < 0.5) ? 900.0 : 700.0;
+			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+
+			// Square wave for classic chiptune crunch
+			double squareWave = (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
+
+			// Linear fade out for each half of the note structure to keep it punchy
+			double noteProgress = (progress < 0.5) ? (progress / 0.5) : ((progress - 0.5) / 0.5);
+			double volumeEnvelope = 1.0 - noteProgress;
+			
+			// Balanced volume scale (around 45) so it doesn't pierce the ears
+			buffer[i] = (byte) (squareWave * 45.0 * volumeEnvelope);
+		}
+		playGeneratedSound(buffer);
+	}
+	
+	/**
+	 * Synthesizes a crisp 8-bit chime for when the game is unpaused.
+	 * Reverses the note order of the pause sound by stepping upward from 
+	 * 700Hz to 900Hz, while keeping a clean, forward-fading volume decay.
+	 */
+	public static void playUnpauseSound() {
+		int durationMs = 120; // Matches the pause duration exactly
+		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		byte[] buffer = new byte[numSamples];
+
+		for (int i = 0; i < numSamples; i++) {
+			double progress = (double) i / numSamples;
+			
+			// Reversed note order: starts low at 700Hz, then steps up to 900Hz halfway through
+			double frequency = (progress < 0.5) ? 700.0 : 900.0;
+			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+
+			// Square wave for matching retro crunch
+			double squareWave = (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
+
+			// Forward decay: Each note strikes cleanly and fades out down to 0.0
+			double noteProgress = (progress < 0.5) ? (progress / 0.5) : ((progress - 0.5) / 0.5);
+			double volumeEnvelope = 1.0 - noteProgress; 
+			
+			// Balanced volume scale (around 45) to match the pause audio levels
+			buffer[i] = (byte) (squareWave * 45.0 * volumeEnvelope);
 		}
 		playGeneratedSound(buffer);
 	}
