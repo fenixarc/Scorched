@@ -11,7 +11,7 @@ import scorched.sound.SoundEngine;
 public class WeatherManager {
 
     public enum WeatherType {
-        CLEAR, RAIN, SNOW, STORMY
+        CLEAR, RAIN, SNOW, STORMY, SANDSTORM, METEOR_SHOWER
     }
 
     private WeatherType currentType = WeatherType.CLEAR;
@@ -19,20 +19,22 @@ public class WeatherManager {
     private final int screenHeight;
     private final Random rand = new Random();
     
-    // Physical strike trackers
+    // Lightning strike trackers
     private boolean drawBolt = false;
     private int strikeX = 0;
     private int strikeY = 0;
     private List<java.awt.Point> boltPoints = new ArrayList<>();
     private boolean strikeTriggeredThisFrame = false;
-
-    // Particle pool
-    private final List<WeatherParticle> particles = new ArrayList<>();
     
     // Lightning mechanics
     private int lightningTimer = 0;
     private boolean isLightningFlashing = false;
     private int flashDuration = 0;
+
+    // Particle pool
+    private final List<WeatherParticle> particles = new ArrayList<>();
+    // Tail smoke particle pool for foreground meteors
+    private final List<SmokeParticle> smokeParticles = new ArrayList<>();
 
     public WeatherManager(int width, int height) {
         this.screenWidth = width;
@@ -72,6 +74,49 @@ public class WeatherManager {
             } else if (currentType == WeatherType.SNOW) {
                 particles.add(new WeatherParticle(rand.nextInt(screenWidth), 0, 
                         rand.nextGaussian() * 0.5, rand.nextInt(2) + 2, WeatherType.SNOW));
+            } else if (currentType == WeatherType.SANDSTORM) {
+                // Spawn across the screen on frame 1, otherwise feed from the left edge
+                double spawnX = particles.isEmpty() ? rand.nextInt(screenWidth) : 0;
+                
+                // High horizontal speed (6 to 11), with a tiny bit of vertical jitter (-1 to 2)
+                double vx = rand.nextInt(6) + 6;
+                double vy = rand.nextGaussian() * 0.8 + 0.5; 
+                
+                particles.add(new WeatherParticle(spawnX, rand.nextInt(screenHeight), vx, vy, WeatherType.SANDSTORM));
+            } else if (currentType == WeatherType.METEOR_SHOWER) {
+                // Spawn background dressing meteors at a steady rate
+            	if (rand.nextInt(5) == 0) {
+                    boolean fallFromLeft = rand.nextBoolean();
+                    double spawnX, vx;
+                    
+                    if (fallFromLeft) {
+                        spawnX = rand.nextInt(screenWidth + 200) - 200; // Left side / off-screen left
+                        vx = rand.nextInt(3) + 6;                       // Moves right (positive vx)
+                    } else {
+                        spawnX = rand.nextInt(screenWidth + 200);       // Right side / off-screen right
+                        vx = -(rand.nextInt(3) + 6);                    // Moves left (negative vx)
+                    }
+                    
+                    double vy = rand.nextInt(3) + 6; // Always falls downward
+                    particles.add(new WeatherParticle(spawnX, 0, vx, vy, WeatherType.METEOR_SHOWER, false));
+                }
+                
+                // Spawn a gameplay-impacting foreground meteor occasionally (approx. once every 4-5 seconds at 30 FPS)
+            	if (rand.nextInt(130) == 0) {
+                    boolean fallFromLeft = rand.nextBoolean();
+                    double spawnX, vx;
+                    
+                    if (fallFromLeft) {
+                        spawnX = rand.nextInt(screenWidth - 200);
+                        vx = rand.nextInt(2) + 5; // Moves right
+                    } else {
+                        spawnX = rand.nextInt(screenWidth - 200) + 200;
+                        vx = -(rand.nextInt(2) + 5); // Moves left
+                    }
+                    
+                    double vy = rand.nextInt(2) + 5; // Always falls downward
+                    particles.add(new WeatherParticle(spawnX, 0, vx, vy, WeatherType.METEOR_SHOWER, true));
+                }
             }
         }
 
@@ -80,10 +125,37 @@ public class WeatherManager {
             WeatherParticle p = particles.get(i);
             p.x += p.vx;
             p.y += p.vy;
+            
+            // Spawn trailing smoke particles for active foreground meteors
+            if (p.type == WeatherType.METEOR_SHOWER && p.isForeground) {
+                smokeParticles.add(new SmokeParticle(p.x, p.y));
+            }
+            
+            // Sandstorms should also check if they blow past the right border
+            boolean outOfBounds = p.y >= screenHeight || p.x >= screenWidth || p.x < 0;
+
+            boolean hitGround = terrain.isSolidAt((int) p.x, (int) p.y);
 
             // Check if particle hits solid ground or leaves screen boundaries
-            if (p.y >= screenHeight || terrain.isSolidAt(p.x, p.y)) {
+            if (outOfBounds || hitGround) {
+            	// If it's a foreground meteor hitting solid ground inside boundaries, trigger a terrain explosion event
+                if (p.type == WeatherType.METEOR_SHOWER && p.isForeground && hitGround && p.x >= 0 && p.x < screenWidth) {
+                    strikeX = (int) p.x;
+                    strikeY = (int) p.y;
+                    strikeTriggeredThisFrame = true;
+                    SoundEngine.playMeteorStrikeSound();
+                }
+                
                 particles.remove(i);
+            }
+        }
+        
+        // Update smoke trail life tracking
+        for (int i = smokeParticles.size() - 1; i >= 0; i--) {
+            SmokeParticle sp = smokeParticles.get(i);
+            sp.life--;
+            if (sp.life <= 0) {
+                smokeParticles.remove(i);
             }
         }
 
@@ -139,6 +211,19 @@ public class WeatherManager {
             g2d.setColor(new Color(255, 255, 255, 180));
             g2d.fillRect(0, 0, screenWidth, screenHeight);
         }
+        
+        // Draw ambient dusty haze for sandstorms to reduce overall visibility
+        if (currentType == WeatherType.SANDSTORM) {
+            g2d.setColor(new Color(210, 180, 140, 45)); // Soft desert tan overlay
+            g2d.fillRect(0, 0, screenWidth, screenHeight);
+        }
+        
+        // Draw smoke particle trails first (so they sit underneath the fiery streak head)
+        for (SmokeParticle sp : smokeParticles) {
+            int alpha = (int) ((sp.life / 15.0) * 120); // Fade out over time
+            g2d.setColor(new Color(90, 85, 85, Math.max(0, Math.min(255, alpha))));
+            g2d.fillOval((int) sp.x - 2, (int) sp.y - 2, 4, 4);
+        }
 
         // Render individual droplets/flakes
         for (WeatherParticle p : particles) {
@@ -148,6 +233,29 @@ public class WeatherManager {
             } else if (p.type == WeatherType.SNOW) {
                 g2d.setColor(new Color(255, 255, 255, 200));
                 g2d.fillRect((int) p.x, (int) p.y, 2, 2);
+            } else if (currentType == WeatherType.SANDSTORM) {
+                // Warm, sandy color palette with randomized opacity per particle
+                g2d.setColor(new Color(220, 185, 130, rand.nextInt(120) + 135));
+                
+                // Draw as a small dot (alternating 1x1 and 2x2 sizes)
+                int size = (rand.nextBoolean()) ? 1 : 2;
+                g2d.fillRect((int) p.x, (int) p.y, size, size);
+            } else if (p.type == WeatherType.METEOR_SHOWER) {
+                if (p.isForeground) {
+                    // Thick, prominent foreground streak
+                    g2d.setColor(new Color(255, 90, 0, 230)); // Fiery Orange
+                    g2d.setStroke(new java.awt.BasicStroke(3f));
+                    g2d.drawLine((int) p.x, (int) p.y, (int) (p.x - p.vx * 1.5), (int) (p.y - p.vy * 1.5));
+                    g2d.setStroke(new java.awt.BasicStroke(1f));
+                    
+                    // Core brightness point
+                    g2d.setColor(Color.YELLOW);
+                    g2d.fillOval((int) p.x - 2, (int) p.y - 2, 4, 4);
+                } else {
+                    // Fainter, thin background cosmetic streak
+                    g2d.setColor(new Color(240, 110, 20, 100)); 
+                    g2d.drawLine((int) p.x, (int) p.y, (int) (p.x - p.vx), (int) (p.y - p.vy));
+                }
             }
         }
         
@@ -173,13 +281,30 @@ public class WeatherManager {
         double x, y;
         double vx, vy;
         WeatherType type;
+        boolean isForeground;
 
         WeatherParticle(double x, double y, double vx, double vy, WeatherType type) {
+            this(x, y, vx, vy, type, false);
+        }
+
+        WeatherParticle(double x, double y, double vx, double vy, WeatherType type, boolean isForeground) {
             this.x = x;
             this.y = y;
             this.vx = vx;
             this.vy = vy;
             this.type = type;
+            this.isForeground = isForeground;
+        }
+    }
+    
+    // Small data holder representing trail particles
+    private static class SmokeParticle {
+        double x, y;
+        int life = 15; // Frames until dissolution
+
+        SmokeParticle(double x, double y) {
+            this.x = x;
+            this.y = y;
         }
     }
     
@@ -195,7 +320,11 @@ public class WeatherManager {
         return false;
     }
     
-    public boolean hasStrikeImpacted() { return drawBolt && isLightningFlashing; }
+    public boolean hasStrikeImpacted() { 
+        return (currentType == WeatherType.STORMY && drawBolt && isLightningFlashing) || 
+               (currentType == WeatherType.METEOR_SHOWER && strikeTriggeredThisFrame); 
+    }
+    
     public int getStrikeX() { return strikeX; }
     public int getStrikeY() { return strikeY; }
 }
