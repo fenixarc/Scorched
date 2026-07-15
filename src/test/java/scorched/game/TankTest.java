@@ -17,6 +17,7 @@ class TankTest {
     private DamageListener mockDamageListener;
     private final Color tankColor = Color.GREEN;
     private final int playerIndex = 1;
+    private final String tankName = "TestTank";
 
     @BeforeEach
     void setUp() {
@@ -31,8 +32,9 @@ class TankTest {
     void testConstructorSnapsToTerrainAndInitializesAI() {
         // Tank height is 14. Terrain is 200. Expected Y = 200 - 14 = 186
         // Passing aiLevel = 1 to verify AI initialization
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 1);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 1);
 
+        assertEquals(tankName, tank.getName());
         assertEquals(100, tank.getX());
         assertEquals(186, tank.getY());
         assertEquals(90, tank.getBarrelAngle());
@@ -46,13 +48,13 @@ class TankTest {
     @Test
     void testConstructorWithoutAI() {
         // Passing aiLevel = 0 should leave AI as null
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
         assertNull(tank.getAI());
     }
 
     @Test
     void testChangeAngleClamping() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
 
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
             // Test normal adjustments
@@ -72,7 +74,7 @@ class TankTest {
 
     @Test
     void testSetBarrelAngle() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
 
         tank.setBarrelAngle(120);
         assertEquals(120, tank.getBarrelAngle());
@@ -86,7 +88,7 @@ class TankTest {
 
     @Test
     void testChangePowerClamping() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
         assertEquals(10.0, tank.getPower());
 
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
@@ -107,7 +109,7 @@ class TankTest {
 
     @Test
     void testSetPower() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
 
         tank.setPower(18.5);
         assertEquals(18.5, tank.getPower());
@@ -122,7 +124,7 @@ class TankTest {
     @Test
     void testCheckHit() {
         // Tank is at X=100, Y=186. Width=30 (X bounds: 85 to 115). Height=14 (Y bounds: 186 to 200)
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
 
         // Center hit
         assertTrue(tank.checkHit(100, 190));
@@ -139,7 +141,7 @@ class TankTest {
 
     @Test
     void testApplyGravity_WhileFallingAndLanding() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
         tank.setDamageListener(mockDamageListener);
 
         // Suddenly change terrain height drastically downward so the tank is in mid-air
@@ -175,7 +177,7 @@ class TankTest {
 
     @Test
     void testTakeDamageAndDeath() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
         tank.setDamageListener(mockDamageListener);
 
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
@@ -204,7 +206,7 @@ class TankTest {
 
     @Test
     void testReset() {
-        Tank tank = new Tank(100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
         
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
             tank.takeDamage(100);
