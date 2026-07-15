@@ -35,11 +35,19 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	// Game States
 	enum GameState {
-		MAIN_MENU, PLAYING, PAUSED, GAME_OVER, BUYING, SETTINGS
+		MAIN_MENU, PLAYER_CONFIG, PLAYING, PAUSED, GAME_OVER, BUYING, SETTINGS
 	}
 
 	private GameState currentState = GameState.MAIN_MENU;
 	private volatile boolean isGeneratingWorld = false;
+	
+	// Player Configuration Setup Fields
+	private int currentPlayerSetupIndex = 0;
+	private String[] setupPlayerNames;
+	private boolean[] setupPlayerIsAI;      // false = Human, true = AI
+	private int[] setupPlayerDifficulty;    // 1 to 5
+	private int selectedSetupOption = 0;    // 0 = Name, 1 = Type, 2 = Difficulty / Next Button
+	private final String[] difficultyLabels = { "Very Easy", "Easy", "Medium", "Hard", "Very Hard" };
 
 	// Pause Menu Selection (0 = Settings, 1 = Exit Battle)
 	private int selectedPauseOption;
@@ -181,12 +189,12 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// Set default cannon angle
 			int startingAngle = (randomX < WIDTH / 2) ? 45 : 135;
 
-			// Temporarily make all other tanks AI
-			// int aiLevel = (i > 0) ? 1 : 0;
-			int aiLevel = 1;
-
+			// Setup AI and player name
+			int aiLevel = setupPlayerIsAI[i] ? setupPlayerDifficulty[i] : 0; 
+			String name = setupPlayerNames[i];
+			
 			// Add the tank
-			Tank newTank = new Tank(randomX, terrain, playerColors[i % playerColors.length], startingAngle, i, aiLevel);
+			Tank newTank = new Tank(name, randomX, terrain, playerColors[i % playerColors.length], startingAngle, i, aiLevel);
 			players.add(newTank);
 			newTank.setDamageListener(this);
 		}
@@ -455,6 +463,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		case MAIN_MENU:
 			drawMainMenu(g2d);
 			break;
+		case PLAYER_CONFIG:
+			drawPlayerConfigMenu(g2d);
+			break;
 		case PLAYING:
 			drawGamePlay(g2d);
 			break;
@@ -545,6 +556,88 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		g2d.setColor(Color.YELLOW);
 		drawCenteredString(g2d, "PRESS ENTER TO START GAME", HEIGHT - 50);
 	}
+	
+	private void drawPlayerConfigMenu(Graphics2D g2d) {
+		if (splashImage != null) {
+			g2d.drawImage(splashImage, 0, 0, WIDTH, HEIGHT, null);
+		} else {
+			g2d.setColor(Color.BLACK);
+			g2d.fillRect(0, 0, WIDTH, HEIGHT);
+		}
+
+		g2d.setFont(new Font("Arial", Font.BOLD, 28));
+		g2d.setColor(Color.YELLOW);
+		drawCenteredString(g2d, "CONFIGURE PLAYER " + (currentPlayerSetupIndex + 1) + " / " + selectedPlayerCount, HEIGHT / 2 - 140);
+
+		g2d.setFont(new Font("Arial", Font.BOLD, 16));
+		g2d.setColor(Color.BLUE);
+		drawCenteredString(g2d, "UP / DOWN TO NAVIGATE OPTIONS", HEIGHT / 2 - 100);
+		drawCenteredString(g2d, "TYPE TO EDIT NAME | LEFT / RIGHT TO CHANGE SETTINGS", HEIGHT / 2 - 80);
+
+		boolean isAI = setupPlayerIsAI[currentPlayerSetupIndex];
+
+		// ==========================================
+		// BOX 1: EDITABLE NAME BOX
+		// ==========================================
+		int box1Y = HEIGHT / 2 - 50;
+		g2d.setColor(new Color(25, 30, 55));
+		g2d.fillRect(WIDTH / 2 - 175, box1Y, 350, 50);
+		g2d.setColor(selectedSetupOption == 0 ? Color.YELLOW : Color.CYAN);
+		g2d.drawRect(WIDTH / 2 - 175, box1Y, 350, 50);
+
+		g2d.setFont(new Font("Arial", Font.BOLD, 20));
+		g2d.setColor(Color.WHITE);
+		String nameText = "NAME: " + setupPlayerNames[currentPlayerSetupIndex];
+		// Add a blinking cursor effect if selected
+		if (selectedSetupOption == 0 && (System.currentTimeMillis() / 500) % 2 == 0) {
+			nameText += "|";
+		}
+		g2d.drawString(nameText, WIDTH / 2 - 150, box1Y + 32);
+
+		// ==========================================
+		// BOX 2: CONTROLLER TYPE (HUMAN / AI)
+		// ==========================================
+		int box2Y = box1Y + 65;
+		g2d.setColor(new Color(25, 30, 55));
+		g2d.fillRect(WIDTH / 2 - 175, box2Y, 350, 50);
+		g2d.setColor(selectedSetupOption == 1 ? Color.YELLOW : Color.CYAN);
+		g2d.drawRect(WIDTH / 2 - 175, box2Y, 350, 50);
+
+		String typeText = "CONTROL: " + (isAI ? "AI" : "HUMAN");
+		g2d.drawString(typeText, WIDTH / 2 - 150, box2Y + 32);
+
+		// ==========================================
+		// BOX 3: DIFFICULTY (ONLY VISIBLE IF AI)
+		// ==========================================
+		int nextButtonY = box2Y + 65;
+		if (isAI) {
+			g2d.setColor(new Color(25, 30, 55));
+			g2d.fillRect(WIDTH / 2 - 175, nextButtonY, 350, 50);
+			g2d.setColor(selectedSetupOption == 2 ? Color.YELLOW : Color.CYAN);
+			g2d.drawRect(WIDTH / 2 - 175, nextButtonY, 350, 50);
+
+			int diffValue = setupPlayerDifficulty[currentPlayerSetupIndex];
+			String diffText = "DIFFICULTY: " + difficultyLabels[diffValue - 1].toUpperCase();
+			g2d.drawString(diffText, WIDTH / 2 - 150, nextButtonY + 32);
+			
+			nextButtonY += 65;
+		}
+
+		// ==========================================
+		// BOX 4: CONFIRMATION / PROGRESSION BUTTON
+		// ==========================================
+		g2d.setColor(new Color(25, 30, 55));
+		g2d.fillRect(WIDTH / 2 - 175, nextButtonY, 350, 50);
+		
+		int confirmOptionIndex = isAI ? 3 : 2;
+		g2d.setColor(selectedSetupOption == confirmOptionIndex ? Color.YELLOW : Color.CYAN);
+		g2d.drawRect(WIDTH / 2 - 175, nextButtonY, 350, 50);
+
+		String buttonLabel = (currentPlayerSetupIndex == selectedPlayerCount - 1) ? "START MATCH" : "NEXT PLAYER";
+		g2d.setColor(Color.WHITE);
+		int btnTextWidth = g2d.getFontMetrics().stringWidth(buttonLabel);
+		g2d.drawString(buttonLabel, WIDTH / 2 - (btnTextWidth / 2), nextButtonY + 32);
+	}
 
 	private void drawGamePlay(Graphics2D g2d) {
 		// Set random sky color
@@ -589,17 +682,23 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Set player turn display
 		Tank activeTank = players.get(activePlayerIndex);
 		g2d.setColor(activeTank.getColor());
-		g2d.drawString("<<< CURRENT TURN: PLAYER " + (activePlayerIndex + 1) + " >>>", WIDTH / 2 - 120, 30);
+		String turnText = "<<< CURRENT TURN: " + activeTank.getName().toUpperCase() + " >>>";
+		FontMetrics fm = g2d.getFontMetrics();
+		g2d.drawString(turnText, (WIDTH - fm.stringWidth(turnText)) / 2, 30);
 
 		// Draw all tank stats above their respective hulls dynamically
 		for (int i = 0; i < players.size(); i++) {
-			Tank t = players.get(i);
-			if (t.isAlive()) {
-				g2d.setColor(t.getColor());
-				g2d.drawString(String.format("P%d Angle: %d°", (i + 1), t.getBarrelAngle()), t.getX() - 40,
-						t.getY() - 35);
-				g2d.drawString(String.format("P%d Power: %.1f", (i + 1), t.getPower()), t.getX() - 40, t.getY() - 20);
-			}
+		    Tank t = players.get(i);
+		    if (t.isAlive()) {
+		        g2d.setColor(t.getColor());
+		        
+		        // Dynamically measure name string size for centralized anchoring above the asset
+		        int nameWidth = g2d.getFontMetrics().stringWidth(t.getName());
+		        g2d.drawString(t.getName(), t.getX() - (nameWidth / 2), t.getY() - 50);
+		        
+		        g2d.drawString(String.format("Angle: %d°", t.getBarrelAngle()), t.getX() - 40, t.getY() - 35);
+		        g2d.drawString(String.format("Power: %.1f", t.getPower()), t.getX() - 40, t.getY() - 20);
+		    }
 		}
 	}
 
@@ -725,7 +824,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		for (int i = 0; i < players.size(); i++) {
 			if (players.get(i).isAlive()) {
 				g2d.setColor(players.get(i).getColor());
-				g2d.drawString("VICTORY FOR PLAYER " + (i + 1) + "!", WIDTH / 2 - 275, HEIGHT / 2 - 20);
+				g2d.drawString("VICTORY FOR " + players.get(i).getName() + "!", WIDTH / 2 - 275, HEIGHT / 2 - 20);
 				winner = true;
 			}
 		}
@@ -792,10 +891,85 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// ENTER Key
 			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 				SoundEngine.playMenuConfirmSound();
-				startNewGame();
-				currentState = GameState.PLAYING;
+				
+				// Initialize setup configurations based on the selected player count
+				currentPlayerSetupIndex = 0;
+				selectedSetupOption = 0;
+				setupPlayerNames = new String[selectedPlayerCount];
+				setupPlayerIsAI = new boolean[selectedPlayerCount];
+				setupPlayerDifficulty = new int[selectedPlayerCount];
+				
+				for (int i = 0; i < selectedPlayerCount; i++) {
+					setupPlayerNames[i] = "Player " + (i + 1);
+					setupPlayerIsAI[i] = (i > 0); // Default first player to Human, others to AI
+					setupPlayerDifficulty[i] = 3;  // Default to Medium (3)
+				}
+				
+				currentState = GameState.PLAYER_CONFIG;
 			}
 
+		}
+		
+		// Player Config Commands
+		else if (currentState == GameState.PLAYER_CONFIG) {
+			boolean isAI = setupPlayerIsAI[currentPlayerSetupIndex];
+			int totalOptions = isAI ? 4 : 3;
+
+			// UP Key
+			if (keyCode == KeyEvent.VK_UP) {
+				SoundEngine.playMenuSelectSound();
+				selectedSetupOption = (selectedSetupOption - 1 + totalOptions) % totalOptions;
+			}
+			
+			// DOWN Key
+			if (keyCode == KeyEvent.VK_DOWN) {
+				SoundEngine.playMenuSelectSound();
+				selectedSetupOption = (selectedSetupOption + 1) % totalOptions;
+			}
+
+			// LEFT / RIGHT Key
+			if (keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_RIGHT) {
+				SoundEngine.playMenuSelectSound();
+				if (selectedSetupOption == 1) {
+					// Toggle AI / Human
+					setupPlayerIsAI[currentPlayerSetupIndex] = !setupPlayerIsAI[currentPlayerSetupIndex];
+					// Reset selection validation context bounds if toggling fields away
+					if (!setupPlayerIsAI[currentPlayerSetupIndex] && selectedSetupOption == 3) {
+						selectedSetupOption = 2;
+					}
+				} else if (selectedSetupOption == 2 && isAI) {
+					// Adjust Difficulty
+					int currentDiff = setupPlayerDifficulty[currentPlayerSetupIndex];
+					if (keyCode == KeyEvent.VK_RIGHT && currentDiff < 5) setupPlayerDifficulty[currentPlayerSetupIndex]++;
+					if (keyCode == KeyEvent.VK_LEFT && currentDiff > 1) setupPlayerDifficulty[currentPlayerSetupIndex]--;
+				}
+			}
+
+			// BACKSPACE Key
+			if (keyCode == KeyEvent.VK_BACK_SPACE && selectedSetupOption == 0) {
+				String currentName = setupPlayerNames[currentPlayerSetupIndex];
+				if (currentName.length() > 0) {
+					setupPlayerNames[currentPlayerSetupIndex] = currentName.substring(0, currentName.length() - 1);
+				}
+			}
+
+			// ESCAPE Key
+			if (keyCode == KeyEvent.VK_ESCAPE) {
+				SoundEngine.playMenuConfirmSound();
+				currentState = GameState.MAIN_MENU;
+			}
+
+			// ENTER Key
+			if (keyCode == KeyEvent.VK_ENTER) {
+				SoundEngine.playMenuConfirmSound();
+				if (currentPlayerSetupIndex < selectedPlayerCount - 1) {
+					currentPlayerSetupIndex++;
+					selectedSetupOption = 0; // Reset focus to top for next player
+				} else {
+					startNewGame();
+					currentState = GameState.PLAYING;
+				}
+			}
 		}
 
 		// Playing commands
@@ -958,6 +1132,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	@Override
 	public void keyTyped(KeyEvent e) {
+		if (currentState == GameState.PLAYER_CONFIG && selectedSetupOption == 0) {
+			char c = e.getKeyChar();
+			// Accept only printable characters up to a reasonable length limit
+			if (c != KeyEvent.CHAR_UNDEFINED && c != '\n' && c != '\b' && setupPlayerNames[currentPlayerSetupIndex].length() < 15) {
+				setupPlayerNames[currentPlayerSetupIndex] += c;
+			}
+		}
 	}
 
 	/**
