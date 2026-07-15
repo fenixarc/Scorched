@@ -2,6 +2,9 @@ package scorched.sound;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.SourceDataLine;
+
+import scorched.game.Tank;
+
 import java.util.Random;
 
 public class SoundEngine {
@@ -461,11 +464,11 @@ public class SoundEngine {
 	
 	/**
 	 * Synthesizes a charging energy pulse for when the tank is raising power.
-	 * Call this repeatedly in the game loop while charging, passing the current power level (1 to 25).
+	 * Call this repeatedly in the game loop while charging, passing the current power level.
 	 */
 	public static void playPowerChargeSound(double powerLevel) {
-		// Normalize the 1-25 range into a 0.0 to 1.0 ratio for the synth math
-		double powerRatio = (powerLevel - 1) / 24.0;
+		// Normalize the range into a 0.0 to 1.0 ratio for the synth math
+		double powerRatio = (powerLevel - 1) / Tank.getMaxPower();
 		
 		// Bound safety check
 		if (powerRatio < 0.0) powerRatio = 0.0;
