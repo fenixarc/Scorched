@@ -26,6 +26,7 @@ public class Tank {
 	private AI ai;
 	private Inventory inventory;
 	private AmmoType currentAmmoType;
+	private String name;
 
 	// Aiming properties (Angle in degrees: 0 is right, 90 is straight up, 180 is
 	// left)
@@ -33,7 +34,8 @@ public class Tank {
 	private int barrelLength = 20;
 	private double power = DEFAULT_POWER;
 
-	public Tank(int startX, Terrain terrain, Color color, int startingAngle, int playerIndex, int aiLevel) {
+	public Tank(String name, int startX, Terrain terrain, Color color, int startingAngle, int playerIndex, int aiLevel) {
+		this.name = name;
 		this.x = startX;
 		this.color = color;
 		this.barrelAngle = startingAngle;
@@ -174,7 +176,7 @@ public class Tank {
 
 	public void changePower(double amount) {
 		this.power += amount;
-		// Keep power between 1 and 25
+		// Keep power between MIN_POWER and MAX_POWER
 		if (this.power < MIN_POWER)
 			this.power = MIN_POWER;
 		else if (this.power > MAX_POWER)
@@ -198,7 +200,7 @@ public class Tank {
 		if (!alive)
 			return;
 
-		System.out.println(this.playerIndex + " sustained damage: " + damage);
+		System.out.println(this.getName() + " sustained damage: " + damage);
 		this.currentHealth -= damage;
 		
 		// Kill tank
@@ -206,7 +208,7 @@ public class Tank {
 			this.currentHealth = 0;
 			this.alive = false;
 			SoundEngine.playTankDeathSound();
-			System.out.println(this.playerIndex + " died");
+			System.out.println(this.getName() + " died");
 			
 			// Create destroyed turret and pass to listener
 			TurretDebris poppedTurret = new TurretDebris(this.x, this.y, this.barrelAngle);
@@ -289,6 +291,14 @@ public class Tank {
 
 	public void setCurrentAmmoType(AmmoType currentAmmoType) {
 		this.currentAmmoType = currentAmmoType;
+	}
+	
+	public String getName() {
+	    return this.name;
+	}
+
+	public static double getMaxPower() {
+		return MAX_POWER;
 	}
 	
 }
