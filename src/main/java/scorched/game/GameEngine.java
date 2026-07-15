@@ -622,21 +622,14 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			
 			nextButtonY += 65;
 		}
-
-		// ==========================================
-		// BOX 4: CONFIRMATION / PROGRESSION BUTTON
-		// ==========================================
-		g2d.setColor(new Color(25, 30, 55));
-		g2d.fillRect(WIDTH / 2 - 175, nextButtonY, 350, 50);
 		
-		int confirmOptionIndex = isAI ? 3 : 2;
-		g2d.setColor(selectedSetupOption == confirmOptionIndex ? Color.YELLOW : Color.CYAN);
-		g2d.drawRect(WIDTH / 2 - 175, nextButtonY, 350, 50);
-
-		String buttonLabel = (currentPlayerSetupIndex == selectedPlayerCount - 1) ? "START MATCH" : "NEXT PLAYER";
-		g2d.setColor(Color.WHITE);
-		int btnTextWidth = g2d.getFontMetrics().stringWidth(buttonLabel);
-		g2d.drawString(buttonLabel, WIDTH / 2 - (btnTextWidth / 2), nextButtonY + 32);
+		// ==========================================
+		// FOOTER
+		// ==========================================
+		g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+		g2d.setColor(Color.YELLOW);
+		String footerLabel = (currentPlayerSetupIndex == selectedPlayerCount - 1) ? "START GAME" : "NEXT PLAYER";
+		drawCenteredString(g2d, "PRESS ENTER " + footerLabel, HEIGHT - 50);
 	}
 
 	private void drawGamePlay(Graphics2D g2d) {
@@ -913,7 +906,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Player Config Commands
 		else if (currentState == GameState.PLAYER_CONFIG) {
 			boolean isAI = setupPlayerIsAI[currentPlayerSetupIndex];
-			int totalOptions = isAI ? 4 : 3;
+			int totalOptions = isAI ? 3 : 2;
 
 			// UP Key
 			if (keyCode == KeyEvent.VK_UP) {
