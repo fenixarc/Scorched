@@ -200,7 +200,7 @@ public class AI {
         this.myTank.setBarrelAngle(finalAngle);
         this.myTank.setPower(finalPower);
         this.myTank.setCurrentAmmoType(ammoType);
-        System.out.println("AI: " + this.myTank.getPlayerIndex() + " targeting: " + target.getPlayerIndex() + " firing: " + ammoType.getName() 
+        System.out.println("AI: " + this.myTank.getName() + " targeting: " + target.getName() + " firing: " + ammoType.getName() 
         		+ " perfectPower: " + (float) perfectPower + " finalPower: " + (float) finalPower 
         		+ " defaultAngle: " + defaultAngle + " finalAngle: " + finalAngle);
     }
