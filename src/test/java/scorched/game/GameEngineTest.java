@@ -3,6 +3,8 @@ package scorched.game;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import scorched.enums.HillTypes;
+import scorched.enums.MainMenuOptions;
 import scorched.enums.PauseMenuOptions;
 import scorched.weapons.HERound;
 
@@ -49,21 +51,21 @@ class GameEngineTest {
     @Test
     @DisplayName("Main Menu: Menu selection toggles cleanly between Players and Hills options")
     void testMainMenuNavigation() throws Exception {
-        Field menuOptField = GameEngine.class.getDeclaredField("selectedMenuOption");
-        menuOptField.setAccessible(true);
+        Field mainMenuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
+        mainMenuOptField.setAccessible(true);
 
-        // Default should be 0 (Players)
-        assertEquals(0, menuOptField.get(gameEngine));
+        // Default should be PLAYERS
+        assertEquals(MainMenuOptions.PLAYERS, mainMenuOptField.get(gameEngine));
 
-        // Press DOWN arrow -> should change to 1 (Hills)
+        // Press DOWN arrow -> should change to HILLS
         KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(downEvent);
-        assertEquals(1, menuOptField.get(gameEngine));
+        assertEquals(MainMenuOptions.HILLS, mainMenuOptField.get(gameEngine));
 
-        // Press UP arrow -> should return to 0 (Players)
+        // Press UP arrow -> should return to PLAYERS
         KeyEvent upEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_UP, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(upEvent);
-        assertEquals(0, menuOptField.get(gameEngine));
+        assertEquals(MainMenuOptions.PLAYERS, mainMenuOptField.get(gameEngine));
     }
 
     @Test
@@ -72,10 +74,10 @@ class GameEngineTest {
         Field countField = GameEngine.class.getDeclaredField("selectedPlayerCount");
         countField.setAccessible(true);
         
-        // Ensure Players configuration row is highlighted (Index 0)
-        Field menuOptField = GameEngine.class.getDeclaredField("selectedMenuOption");
-        menuOptField.setAccessible(true);
-        menuOptField.set(gameEngine, 0);
+        // Ensure Players configuration row is highlighted
+        Field mainMenuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
+        mainMenuOptField.setAccessible(true);
+        mainMenuOptField.set(gameEngine, MainMenuOptions.PLAYERS);
 
         // Default player count is 2. Press RIGHT 3 times -> should equal 5
         KeyEvent rightEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_RIGHT, KeyEvent.CHAR_UNDEFINED);
@@ -102,9 +104,9 @@ class GameEngineTest {
         countField.set(gameEngine, 4);
 
         // Ensure Players row is highlighted
-        Field menuOptField = GameEngine.class.getDeclaredField("selectedMenuOption");
-        menuOptField.setAccessible(true);
-        menuOptField.set(gameEngine, 0);
+        Field mainMenuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
+        mainMenuOptField.setAccessible(true);
+        mainMenuOptField.set(gameEngine, MainMenuOptions.PLAYERS);
 
         KeyEvent leftEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_LEFT, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(leftEvent);
@@ -121,38 +123,26 @@ class GameEngineTest {
     @Test
     @DisplayName("Main Menu: RIGHT/LEFT arrows properly modify selected hill index layout options")
     void testHillStrengthSelectionBoundaries() throws Exception {
-        Field hillIndexField = GameEngine.class.getDeclaredField("selectedHillIndex");
-        hillIndexField.setAccessible(true);
+        Field hillTypeField = GameEngine.class.getDeclaredField("selectedHillType");
+        hillTypeField.setAccessible(true);
 
-        // Navigate menu selection cursor explicitly down onto Hills options row (Index 1)
-        Field menuOptField = GameEngine.class.getDeclaredField("selectedMenuOption");
-        menuOptField.setAccessible(true);
-        menuOptField.set(gameEngine, 1);
+        // Navigate menu selection cursor explicitly down onto Hills options row
+        Field mainMenuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
+        mainMenuOptField.setAccessible(true);
+        mainMenuOptField.set(gameEngine, MainMenuOptions.HILLS);
 
-        // Default setting starts at 0 ("Random")
-        assertEquals(0, hillIndexField.get(gameEngine));
+        // Default setting starts at RANDOM
+        assertEquals(HillTypes.RANDOM, hillTypeField.get(gameEngine));
 
         // Cycle through options via RIGHT arrow key inputs
         KeyEvent rightEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_RIGHT, KeyEvent.CHAR_UNDEFINED);
-        gameEngine.keyPressed(rightEvent); // 1: Rolling Hills
-        gameEngine.keyPressed(rightEvent); // 2: Large Hills
-        gameEngine.keyPressed(rightEvent); // 3: Jagged Cliffs
-        assertEquals(3, hillIndexField.get(gameEngine));
-
-        // Ensure selection hits wall clamp boundary limit at index 3
         gameEngine.keyPressed(rightEvent);
-        assertEquals(3, hillIndexField.get(gameEngine), "Hill index selections must never overflow past 3");
+        assertEquals(HillTypes.RANDOM.next(), hillTypeField.get(gameEngine));
 
         // Cycle backwards using LEFT arrow key inputs
         KeyEvent leftEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_LEFT, KeyEvent.CHAR_UNDEFINED);
-        gameEngine.keyPressed(leftEvent); // back down to 2
-        assertEquals(2, hillIndexField.get(gameEngine));
-
-        // Ensure selection clamps securely at baseline floor index 0
         gameEngine.keyPressed(leftEvent);
-        gameEngine.keyPressed(leftEvent);
-        gameEngine.keyPressed(leftEvent);
-        assertEquals(0, hillIndexField.get(gameEngine), "Hill index selections must never decrement beneath 0");
+        assertEquals(HillTypes.RANDOM, hillTypeField.get(gameEngine));
     }
 
     @Test

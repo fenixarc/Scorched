@@ -2,6 +2,8 @@ package scorched.game;
 
 import javax.swing.JPanel;
 
+import scorched.enums.HillTypes;
+import scorched.enums.MainMenuOptions;
 import scorched.enums.PauseMenuOptions;
 import scorched.sound.MusicTrack;
 import scorched.sound.MusicTracksList;
@@ -42,6 +44,11 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private GameState currentState = GameState.MAIN_MENU;
 	private volatile boolean isGeneratingWorld = false;
 	
+	// Main Menu
+	private BufferedImage splashImage;
+	private HillTypes selectedHillType;
+	private MainMenuOptions selectedMainMenuOption;
+	
 	// Player Configuration Setup Fields
 	private int currentPlayerSetupIndex = 0;
 	private String[] setupPlayerNames;
@@ -56,12 +63,6 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	
 	// Settings Menu Selection (0 = Music Vol, 1 = Sound Vol, 2 = Mute Music, 3 = Mute Sound, 4 = Back)
 	private int selectedSettingsOption;
-
-	// Main Menu
-	private BufferedImage splashImage;
-	private String[] hillOptions = { "Random", "Rolling Hills", "Large Hills", "Jagged Cliffs" };
-	private int selectedHillIndex;
-	private int selectedMenuOption;
 
 	// Variable to hold the current round's background color
 	private Color skyColor;
@@ -108,10 +109,12 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		this.setDoubleBuffered(true);
 		this.setFocusable(true);
 		this.addKeyListener(this);
-		selectedPlayerCount = 2;
-		selectedHillIndex = 0; // Defaults to "Random"
-		selectedMenuOption = 0; // Set Main Menu default selection
 		this.weatherManager = new WeatherManager(WIDTH, HEIGHT);
+		
+		// Set Main Menu defaults
+		selectedPlayerCount = 2;
+		selectedHillType = HillTypes.RANDOM;
+		selectedMainMenuOption = MainMenuOptions.PLAYERS;
 
 		// Load the splash image safely
 		try {
@@ -142,18 +145,15 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		this.setBackground(skyColor);
 
 		// Initialize terrain, dirt color, and randomize hill strength
-		int hillStrength;
-		if (selectedHillIndex == 0)
-			hillStrength = rand.nextInt(2) + 1;
-		else
-			hillStrength = selectedHillIndex;
+		HillTypes activeHillType = selectedHillType.resolve();
+		int hillStrength = activeHillType.getStrength();
 		terrain = new Terrain(WIDTH, HEIGHT, activeEnv.dirt, hillStrength);
 
 		// Pick dynamic environmental climate
 		weatherManager.randomizeWeather();
 
 		// Set Main Menu default selection
-		selectedMenuOption = 0;
+		selectedMainMenuOption = MainMenuOptions.PLAYERS;
 
 		// Array of music tracks for in game
 		MusicTrack[] battleTracks = { MusicTracksList.DESERT_WASTELAND, MusicTracksList.NEON_CITADEL,
@@ -513,49 +513,26 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		drawCenteredString(g2d, "UP / DOWN ARROWS CHANGE SELECTION", HEIGHT / 2 - 80);
 		drawCenteredString(g2d, "RIGHT / LEFT ARROWS CHANGE SETTING", HEIGHT / 2 - 60);
 
-		// ==========================================
-		// BOX 1: PLAYERS SELECTION
-		// ==========================================
-		g2d.setColor(new Color(25, 30, 55));
-		g2d.fillRect(WIDTH / 2 - 150, HEIGHT / 2 - 15, 300, 60);
-		// Highlight if selected
-		if (selectedMenuOption == 0)
-			g2d.setColor(Color.YELLOW);
-		else
-			g2d.setColor(Color.CYAN);
-		g2d.drawRect(WIDTH / 2 - 150, HEIGHT / 2 - 15, 300, 60);
+	    // Dynamic rendering of Main Menu options via MenuUI
+	    MainMenuOptions[] options = MainMenuOptions.values();
+	    int boxHeight = 60;
+	    int gap = 20;
 
-		g2d.setFont(new Font("Arial", Font.BOLD, 24));
-		g2d.setColor(Color.WHITE);
-		g2d.drawString("PLAYERS: " + selectedPlayerCount, WIDTH / 2 - 65, HEIGHT / 2 + 23);
+	    for (int i = 0; i < options.length; i++) {
+	        int boxY = HEIGHT / 2 - 15 + (i * (boxHeight + gap));
+	        boolean isSelected = (options[i] == selectedMainMenuOption);
 
-		// ==========================================
-		// BOX 2: HILL STRENGTH SELECTION
-		// ==========================================
-		// Shifted down by 80 pixels (60px box height + 20px gap)
-		int box2Y = HEIGHT / 2 - 15 + 80;
+	        String displayText;
+	        if (options[i] == MainMenuOptions.PLAYERS) {
+	            displayText = "PLAYERS: " + selectedPlayerCount;
+	        } else {
+	            displayText = "HILLS: " + selectedHillType.getLabel().toUpperCase();
+	        }
 
-		g2d.setColor(new Color(25, 30, 55));
-		g2d.fillRect(WIDTH / 2 - 150, box2Y, 300, 60);
-		// Highlight if selected
-		if (selectedMenuOption == 1)
-			g2d.setColor(Color.YELLOW);
-		else
-			g2d.setColor(Color.CYAN);
-		g2d.drawRect(WIDTH / 2 - 150, box2Y, 300, 60);
+	        MenuUI.drawMenuOptionBox(g2d, displayText, boxY, 300, boxHeight, isSelected);
+	    }
 
-		// Draw the text dynamically from array
-		g2d.setFont(new Font("Arial", Font.BOLD, 20));
-		g2d.setColor(Color.WHITE);
-		String hillText = "HILLS: " + hillOptions[selectedHillIndex].toUpperCase();
-
-		// Simple dynamic centering calculation for the text inside the box
-		int textWidth = g2d.getFontMetrics().stringWidth(hillText);
-		g2d.drawString(hillText, WIDTH / 2 - (textWidth / 2), box2Y + 37);
-
-		// ==========================================
-		// FOOTER
-		// ==========================================
+	    // Footer
 		g2d.setFont(new Font("Arial", Font.PLAIN, 18));
 		g2d.setColor(Color.YELLOW);
 		drawCenteredString(g2d, "PRESS ENTER TO START GAME", HEIGHT - 50);
@@ -853,32 +830,34 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// UP key
 			if (keyCode == KeyEvent.VK_UP) {
 				SoundEngine.playMenuSelectSound();
-				selectedMenuOption = 0;
+				selectedMainMenuOption = selectedMainMenuOption.previous();
 			}
 
 			// DOWN key
 			if (keyCode == KeyEvent.VK_DOWN) {
 				SoundEngine.playMenuSelectSound();
-				selectedMenuOption = 1;
+				selectedMainMenuOption = selectedMainMenuOption.next();
 			}
 
 			// RIGHT key
 			if (keyCode == KeyEvent.VK_RIGHT) {
 				SoundEngine.playMenuSelectSound();
-				if (selectedMenuOption == 0 && selectedPlayerCount < 10)
+				if (selectedMainMenuOption == MainMenuOptions.PLAYERS && selectedPlayerCount < 10) {
 					selectedPlayerCount++;
-				else if (selectedMenuOption == 1 && selectedHillIndex < 3)
-					selectedHillIndex++;
+				} else if (selectedMainMenuOption == MainMenuOptions.HILLS) {
+			        selectedHillType = selectedHillType.next();
+				}
 			}
 
 			// LEFT key
 			if (keyCode == KeyEvent.VK_LEFT) {
-				SoundEngine.playMenuSelectSound();
-				if (selectedMenuOption == 0 && selectedPlayerCount > 2)
-					selectedPlayerCount--;
-				else if (selectedMenuOption == 1 && selectedHillIndex > 0)
-					selectedHillIndex--;
-			}
+		        SoundEngine.playMenuSelectSound();
+		        if (selectedMainMenuOption == MainMenuOptions.PLAYERS && selectedPlayerCount > 2) {
+		            selectedPlayerCount--;
+		        } else if (selectedMainMenuOption == MainMenuOptions.HILLS) {
+		            selectedHillType = selectedHillType.previous();
+		        }
+		    }
 
 			// ESCPAE key
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
