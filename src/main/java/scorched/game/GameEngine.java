@@ -2,6 +2,7 @@ package scorched.game;
 
 import javax.swing.JPanel;
 
+import scorched.enums.PauseMenuOptions;
 import scorched.sound.MusicTrack;
 import scorched.sound.MusicTracksList;
 import scorched.sound.SoundEngine;
@@ -50,8 +51,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private int selectedSetupOption = 0;    // 0 = Name, 1 = Type, 2 = Difficulty / Next Button
 	private final String[] difficultyLabels = { "Very Easy", "Easy", "Medium", "Hard", "Very Hard" };
 
-	// Pause Menu Selection (0 = Settings, 1 = Exit Battle)
-	private int selectedPauseOption;
+	// Pause Menu Selection
+	private PauseMenuOptions selectedPauseOption = PauseMenuOptions.SETTINGS;
 	
 	// Settings Menu Selection (0 = Music Vol, 1 = Sound Vol, 2 = Mute Music, 3 = Mute Sound, 4 = Back)
 	private int selectedSettingsOption;
@@ -129,7 +130,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	 */
 	public void startNewGame() {
 		isGeneratingWorld = true;
-		selectedPauseOption = 0;
+		selectedPauseOption = PauseMenuOptions.SETTINGS;
 		selectedSettingsOption = 0;
 
 		// Pick a random environment bundle
@@ -715,43 +716,26 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	}
 
 	private void drawPauseMenu(Graphics2D g2d) {
-		// Add a semi-transparent overlay to dim the screen
-		g2d.setColor(new Color(0, 0, 0, 160));
-		g2d.fillRect(0, 0, WIDTH, HEIGHT);
+	    // Dim Overlay
+	    g2d.setColor(new Color(0, 0, 0, 160));
+	    g2d.fillRect(0, 0, WIDTH, HEIGHT);
 
-		// Render Title
-		g2d.setFont(new Font("Arial", Font.BOLD, 36));
-		g2d.setColor(Color.YELLOW);
-		g2d.drawString("GAME PAUSED", WIDTH / 2 - 120, HEIGHT / 2 - 80);
+	    // Title
+	    g2d.setFont(new Font("Arial", Font.BOLD, 36));
+	    g2d.setColor(Color.YELLOW);
+	    drawCenteredString(g2d, "GAME PAUSED", HEIGHT / 2 - 100);
 
-		// Style configuration matching the Main Menu
-				String[] options = { "SETTINGS", "EXIT BATTLE" };
-				g2d.setFont(new Font("Arial", Font.BOLD, 24));
+	    // Dynamic rendering loop over Enum values
+	    PauseMenuOptions[] options = PauseMenuOptions.values();
+	    int boxHeight = 60;
+	    int gap = 20;
 
-				// Draw Options Vertically using Main Menu stylized boxes
-				for (int i = 0; i < options.length; i++) {
-					// Calculate vertical position to match main menu box pacing (60px height + 20px gap)
-					int boxY = HEIGHT / 2 - 15 + (i * 80);
+	    for (int i = 0; i < options.length; i++) {
+	        int boxY = HEIGHT / 2 - 15 + (i * (boxHeight + gap));
+	        boolean isSelected = (options[i] == selectedPauseOption);
 
-					// 1. Draw Background Box
-					g2d.setColor(new Color(25, 30, 55));
-					g2d.fillRect(WIDTH / 2 - 150, boxY, 300, 60);
-
-					// 2. Highlight border based on selection
-					if (i == selectedPauseOption) {
-						g2d.setColor(Color.YELLOW);
-					} else {
-						g2d.setColor(Color.CYAN);
-					}
-					g2d.drawRect(WIDTH / 2 - 150, boxY, 300, 60);
-
-					// 3. Draw perfectly centered white text inside the box
-					g2d.setColor(Color.WHITE);
-					FontMetrics fm = g2d.getFontMetrics();
-					int textX = WIDTH / 2 - (fm.stringWidth(options[i]) / 2);
-					int textY = boxY + 37; // Centers text baseline vertically inside the 60px box
-					g2d.drawString(options[i], textX, textY);
-				}
+	        MenuUI.drawMenuOptionBox(g2d, options[i].getLabel(), boxY, 300, boxHeight, isSelected);
+	    }
 	}
 	
 	private void drawSettingsMenu(Graphics2D g2d) {
@@ -999,7 +983,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 				//SoundEngine.stopMusic();
 				SoundEngine.playPauseSound();
-				selectedPauseOption = 0;
+				selectedPauseOption = PauseMenuOptions.SETTINGS;
 				currentState = GameState.PAUSED;
 			}
 
@@ -1043,22 +1027,22 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// UP Key
 			if (e.getKeyCode() == KeyEvent.VK_UP) {
 				SoundEngine.playMenuSelectSound();
-				selectedPauseOption = 0;
+				selectedPauseOption = selectedPauseOption.previous();
 			}
 
 			// DOWN Key
 			if (e.getKeyCode() == KeyEvent.VK_DOWN) {
 				SoundEngine.playMenuSelectSound();
-				selectedPauseOption = 1;
+				selectedPauseOption = selectedPauseOption.next();
 			}
 
 			// ENTER Key
 			if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-				if (selectedPauseOption == 0) {
+				if (selectedPauseOption == PauseMenuOptions.SETTINGS) {
 					SoundEngine.playMenuConfirmSound();
 					selectedSettingsOption = 0;
 					currentState = GameState.SETTINGS;
-				} else if (selectedPauseOption == 1) {
+				} else if (selectedPauseOption == PauseMenuOptions.EXIT_BATTLE) {
 					SoundEngine.playMenuConfirmSound();
 					SoundEngine.stopMusic();
 					currentState = GameState.MAIN_MENU;

@@ -3,6 +3,7 @@ package scorched.game;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import scorched.enums.PauseMenuOptions;
 import scorched.weapons.HERound;
 
 import java.awt.event.KeyEvent;
@@ -215,12 +216,12 @@ class GameEngineTest {
         setState(GameEngine.GameState.PLAYING);
         assertEquals(GameEngine.GameState.PLAYING, getState());
 
-        // Press Escape -> State moves to PAUSED and focuses selection at index 0 (Settings)
+        // Press Escape -> State moves to PAUSED and defaults selected pause option to SETTINGS
         KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(escapeEvent);
         
         assertEquals(GameEngine.GameState.PAUSED, getState(), "Pressing Escape during game should switch state to PAUSED");
-        assertEquals(0, pauseOptionField.get(gameEngine), "Entering pause menu should reset selected index to 0 (Settings)");
+        assertEquals(PauseMenuOptions.SETTINGS, pauseOptionField.get(gameEngine), "Entering pause menu should reset selected option to SETTINGS");
 
         // Press Escape again -> Resumes execution processing smoothly back inside active gameplay state
         gameEngine.keyPressed(escapeEvent);
@@ -236,15 +237,15 @@ class GameEngineTest {
         // Transition into PAUSED state directly
         setState(GameEngine.GameState.PAUSED);
 
-        // Test Down selection modification -> increments list cursor forward to 1 (Exit Battle)
+        // Test Down selection modification -> moves focus to EXIT_BATTLE
         KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(downEvent);
-        assertEquals(1, pauseOptionField.get(gameEngine), "DOWN arrow key should select index 1 (Exit Battle)");
+        assertEquals(PauseMenuOptions.EXIT_BATTLE, pauseOptionField.get(gameEngine), "DOWN arrow key should select EXIT_BATTLE");
 
-        // Test Up selection modification -> pulls target focus index backward to 0 (Settings)
+        // Test Up selection modification -> pulls target focus index backward to SETTINGS
         KeyEvent upEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_UP, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(upEvent);
-        assertEquals(0, pauseOptionField.get(gameEngine), "UP arrow key should navigate back to index 0 (Settings)");
+        assertEquals(PauseMenuOptions.SETTINGS, pauseOptionField.get(gameEngine), "UP arrow key should navigate back to SETTINGS");
     }
 
     @Test
@@ -253,7 +254,7 @@ class GameEngineTest {
         // Set state directly to PAUSED
         setState(GameEngine.GameState.PAUSED);
 
-        // Highlight option index 1 ('Exit Battle')
+        // Highlight option 'Exit Battle'
         KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(downEvent);
 
