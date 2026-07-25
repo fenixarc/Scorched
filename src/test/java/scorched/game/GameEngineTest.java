@@ -1,14 +1,17 @@
 package scorched.game;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import scorched.enums.GameState;
 import scorched.enums.MainMenuOptions;
 import scorched.enums.PauseMenuOptions;
 import scorched.enums.PlayerConfigMenuOptions;
 import scorched.enums.PlayerDifficulty;
+import scorched.sound.SoundEngine;
 import scorched.weapons.HERound;
 
 import java.awt.event.KeyEvent;
@@ -23,11 +26,20 @@ import static org.mockito.Mockito.*;
 class GameEngineTest {
 
     private GameEngine gameEngine;
+    private MockedStatic<SoundEngine> mockedSoundEngine;
 
     @BeforeEach
     void setUp() {
         // Safe configuration. Asset loading errors caught internally inside GameEngine constructor.
+    	mockedSoundEngine = mockStatic(SoundEngine.class);
         gameEngine = new GameEngine(800, 600);
+    }
+    
+    @AfterEach
+    void tearDown() {
+        if (mockedSoundEngine != null) {
+            mockedSoundEngine.close();
+        }
     }
 
     private void setState(GameState state) throws Exception {
