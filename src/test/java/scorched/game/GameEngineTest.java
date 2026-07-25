@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import scorched.enums.GameState;
 import scorched.enums.MainMenuOptions;
 import scorched.enums.PauseMenuOptions;
 import scorched.enums.PlayerConfigMenuOptions;
@@ -29,16 +30,16 @@ class GameEngineTest {
         gameEngine = new GameEngine(800, 600);
     }
 
-    private void setState(GameEngine.GameState state) throws Exception {
+    private void setState(GameState state) throws Exception {
         Field stateField = GameEngine.class.getDeclaredField("currentState");
         stateField.setAccessible(true);
         stateField.set(gameEngine, state);
     }
 
-    private GameEngine.GameState getState() throws Exception {
+    private GameState getState() throws Exception {
         Field stateField = GameEngine.class.getDeclaredField("currentState");
         stateField.setAccessible(true);
-        return (GameEngine.GameState) stateField.get(gameEngine);
+        return (GameState) stateField.get(gameEngine);
     }
 
     @Test
@@ -47,7 +48,7 @@ class GameEngineTest {
         assertEquals(800, gameEngine.WIDTH);
         assertEquals(600, gameEngine.HEIGHT);
         
-        assertEquals(GameEngine.GameState.MAIN_MENU, getState());
+        assertEquals(GameState.MAIN_MENU, getState());
     }
 
     @Test
@@ -153,7 +154,7 @@ class GameEngineTest {
         KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(enterEvent);
 
-        assertEquals(GameEngine.GameState.PLAYER_CONFIG, getState(), "ENTER on MAIN_MENU should navigate to PLAYER_CONFIG");
+        assertEquals(GameState.PLAYER_CONFIG, getState(), "ENTER on MAIN_MENU should navigate to PLAYER_CONFIG");
     }
 
     @Test
@@ -163,14 +164,14 @@ class GameEngineTest {
         
         // Enter from MAIN_MENU into PLAYER_CONFIG (2 players by default)
         gameEngine.keyPressed(enterEvent);
-        assertEquals(GameEngine.GameState.PLAYER_CONFIG, getState());
+        assertEquals(GameState.PLAYER_CONFIG, getState());
 
         // Confirm Player 1
         gameEngine.keyPressed(enterEvent);
         // Confirm Player 2 (final player) -> triggers startNewGame() & transitions to PLAYING
         gameEngine.keyPressed(enterEvent);
 
-        assertEquals(GameEngine.GameState.PLAYING, getState(), "Confirming setup for all players should start the game and switch state to PLAYING");
+        assertEquals(GameState.PLAYING, getState(), "Confirming setup for all players should start the game and switch state to PLAYING");
     }
 
     @Test
@@ -205,19 +206,19 @@ class GameEngineTest {
         pauseOptionField.setAccessible(true);
 
         // Transition into active gameplay
-        setState(GameEngine.GameState.PLAYING);
-        assertEquals(GameEngine.GameState.PLAYING, getState());
+        setState(GameState.PLAYING);
+        assertEquals(GameState.PLAYING, getState());
 
         // Press Escape -> State moves to PAUSED and defaults selected pause option to SETTINGS
         KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(escapeEvent);
         
-        assertEquals(GameEngine.GameState.PAUSED, getState(), "Pressing Escape during game should switch state to PAUSED");
+        assertEquals(GameState.PAUSED, getState(), "Pressing Escape during game should switch state to PAUSED");
         assertEquals(PauseMenuOptions.SETTINGS, pauseOptionField.get(gameEngine), "Entering pause menu should reset selected option to SETTINGS");
 
         // Press Escape again -> Resumes execution processing smoothly back inside active gameplay state
         gameEngine.keyPressed(escapeEvent);
-        assertEquals(GameEngine.GameState.PLAYING, getState(), "Pressing Escape while paused should resume back to PLAYING");
+        assertEquals(GameState.PLAYING, getState(), "Pressing Escape while paused should resume back to PLAYING");
     }
 
     @Test
@@ -227,7 +228,7 @@ class GameEngineTest {
         pauseOptionField.setAccessible(true);
 
         // Transition into PAUSED state directly
-        setState(GameEngine.GameState.PAUSED);
+        setState(GameState.PAUSED);
 
         // Test Down selection modification -> moves focus to EXIT_BATTLE
         KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
@@ -244,7 +245,7 @@ class GameEngineTest {
     @DisplayName("Pause Menu: Confirming 'Exit Battle' breaks from processing lifecycle loops and returns back to MAIN_MENU")
     void testPauseMenuExitAction() throws Exception {
         // Set state directly to PAUSED
-        setState(GameEngine.GameState.PAUSED);
+        setState(GameState.PAUSED);
 
         // Highlight option 'Exit Battle'
         KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
@@ -254,14 +255,14 @@ class GameEngineTest {
         KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(enterEvent);
         
-        assertEquals(GameEngine.GameState.MAIN_MENU, getState(), "Confirming 'Exit Battle' must return engine cleanly to MAIN_MENU state");
+        assertEquals(GameState.MAIN_MENU, getState(), "Confirming 'Exit Battle' must return engine cleanly to MAIN_MENU state");
     }
 
     @Test
     @DisplayName("Pause State: Active runtime loops and entity lifecycle operations short-circuit while frozen")
     void testUpdateIsFrozenWhenPaused() throws Exception {
         // Set state to PAUSED
-        setState(GameEngine.GameState.PAUSED);
+        setState(GameState.PAUSED);
 
         // Append mock tracking metadata items into target arrays
         Field textListField = GameEngine.class.getDeclaredField("floatingTexts");

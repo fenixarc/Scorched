@@ -7,6 +7,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 
+import scorched.enums.GameState;
 import scorched.weapons.AmmoType;
 
 import java.util.Arrays;
@@ -71,7 +72,7 @@ class AITest {
 
         // Run multiple times to verify it filters out 'this' tank and selects an opponent safely
         for (int i = 0; i < 10; i++) {
-            ai.takeTurn(GameEngine.GameState.PLAYING, terrain, activePlayers);
+            ai.takeTurn(GameState.PLAYING, terrain, activePlayers);
             verify(myTank, atLeastOnce()).setBarrelAngle(anyInt());
             verify(myTank, atLeastOnce()).setPower(anyDouble());
         }
@@ -97,7 +98,7 @@ class AITest {
 
         List<Tank> activePlayers = Arrays.asList(myTank, farOpponent, closeOpponent);
 
-        ai.takeTurn(GameEngine.GameState.PLAYING, terrain, activePlayers);
+        ai.takeTurn(GameState.PLAYING, terrain, activePlayers);
 
         // Verify that the AI actively queried the closest opponent coordinates to complete tracking
         verify(closeOpponent, atLeastOnce()).getX();
@@ -109,7 +110,7 @@ class AITest {
         AI ai = new AI(3, 1000.0, myTank);
         List<Tank> activePlayers = Collections.singletonList(myTank);
 
-        ai.takeTurn(GameEngine.GameState.PLAYING, terrain, activePlayers);
+        ai.takeTurn(GameState.PLAYING, terrain, activePlayers);
 
         // Tank actions should never be invoked if there's no target
         verify(myTank, never()).setBarrelAngle(anyInt());
@@ -135,7 +136,7 @@ class AITest {
                     anyDouble(), anyDouble(), anyDouble(), anyDouble(), any(), any()
             )).thenReturn(true);
 
-            ai.takeTurn(GameEngine.GameState.PLAYING, terrain, activePlayers);
+            ai.takeTurn(GameState.PLAYING, terrain, activePlayers);
 
             // clearPath is mocked to true, the recalculation loop is skipped.
             // With target to the right and zero noise, final angle must be exactly 45.
@@ -154,7 +155,7 @@ class AITest {
         List<Tank> activePlayers = Arrays.asList(myTank, opponent);
 
         // Execute turn on BUYING state
-        ai.takeTurn(GameEngine.GameState.BUYING, terrain, activePlayers);
+        ai.takeTurn(GameState.BUYING, terrain, activePlayers);
 
         // Firing mechanisms should not be touched during shopping
         verify(myTank, never()).setBarrelAngle(anyInt());
@@ -176,7 +177,7 @@ class AITest {
         // Fire 5 times to increment shotsFiredAtTarget, checking that logic runs smoothly
         // and adjustmentSpread = Math.max(0.1, 1.0 - (shotsFiredAtTarget * 0.3)) is utilized.
         for (int i = 0; i < 5; i++) {
-            assertDoesNotThrow(() -> ai.takeTurn(GameEngine.GameState.PLAYING, terrain, activePlayers));
+            assertDoesNotThrow(() -> ai.takeTurn(GameState.PLAYING, terrain, activePlayers));
         }
     }
 }

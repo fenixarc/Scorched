@@ -2,6 +2,7 @@ package scorched.game;
 
 import javax.swing.JPanel;
 
+import scorched.enums.GameState;
 import scorched.enums.HillTypes;
 import scorched.enums.MainMenuOptions;
 import scorched.enums.PauseMenuOptions;
@@ -38,13 +39,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private boolean isRunning = false;
 	private final int FPS = 30;
 
-	// Game States
-	enum GameState {
-		MAIN_MENU, PLAYER_CONFIG, PLAYING, PAUSED, GAME_OVER, BUYING, SETTINGS
-	}
-
-	private GameState currentState = GameState.MAIN_MENU;
-	private volatile boolean isGeneratingWorld = false;
+	private GameState currentState;
+	private volatile boolean isGeneratingWorld;
 	
 	// All Menus
 	private static int BOX_HEIGHT = 60;
@@ -56,7 +52,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private MainMenuOptions selectedMainMenuOption;
 	
 	// Player Configuration Setup Fields
-	private int currentPlayerSetupIndex = 0;
+	private int currentPlayerSetupIndex;
 	private String[] setupPlayerNames;
 	private boolean[] setupPlayerIsAI;      // false = Human, true = AI
 	private PlayerDifficulty[] setupPlayerDifficulty;
@@ -115,6 +111,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		this.setFocusable(true);
 		this.addKeyListener(this);
 		this.weatherManager = new WeatherManager(WIDTH, HEIGHT);
+		this.currentState = GameState.MAIN_MENU;
+		this.isGeneratingWorld = false;
+		this.currentPlayerSetupIndex = 0;
 		
 		// Set Main Menu defaults
 		selectedPlayerCount = 2;

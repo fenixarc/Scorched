@@ -3,7 +3,7 @@ package scorched.game;
 import java.util.List;
 import java.util.Random;
 
-import scorched.game.GameEngine.GameState;
+import scorched.enums.GameState;
 import scorched.weapons.AmmoType;
 
 public class AI {
