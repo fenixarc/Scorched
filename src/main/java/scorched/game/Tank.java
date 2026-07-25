@@ -1,4 +1,5 @@
 package scorched.game;
+
 import java.awt.Color;
 import java.awt.Graphics2D;
 
@@ -27,6 +28,7 @@ public class Tank {
 	private Inventory inventory;
 	private AmmoType currentAmmoType;
 	private String name;
+	private int money;
 
 	// Aiming properties (Angle in degrees: 0 is right, 90 is straight up, 180 is
 	// left)
@@ -34,7 +36,7 @@ public class Tank {
 	private int barrelLength = 20;
 	private double power = DEFAULT_POWER;
 
-	public Tank(String name, int startX, Terrain terrain, Color color, int startingAngle, int playerIndex, int aiLevel) {
+	public Tank(String name, int startX, Terrain terrain, Color color, int startingAngle, int playerIndex, int aiLevel, int money) {
 		this.name = name;
 		this.x = startX;
 		this.color = color;
@@ -44,6 +46,7 @@ public class Tank {
 		if (aiLevel > 0) {
 			ai = new AI(aiLevel, 0, this);
 		}
+		this.money = money;
 		
 		// Snap the tank's bottom directly onto the ground surface
 		this.y = terrain.getHeightAt(this.x) - this.height;
@@ -300,5 +303,20 @@ public class Tank {
 	public static double getMaxPower() {
 		return MAX_POWER;
 	}
+
+	public int getMoney() {
+		return money;
+	}
+
+	public void setMoney(int money) {
+		this.money = money;
+	}
 	
+	public void addMoney(int money) {
+		this.money += money;
+	}
+	
+	public void removeMoney(int money) {
+		this.money -= money;
+	}
 }

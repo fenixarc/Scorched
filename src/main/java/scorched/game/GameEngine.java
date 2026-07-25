@@ -46,6 +46,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private String[] setupPlayerNames;
 	private boolean[] setupPlayerIsAI;      // false = Human, true = AI
 	private int[] setupPlayerDifficulty;    // 1 to 5
+	private int[] setupPlayerMoney;
 	private int selectedSetupOption = 0;    // 0 = Name, 1 = Type, 2 = Difficulty / Next Button
 	private final String[] difficultyLabels = { "Very Easy", "Easy", "Medium", "Hard", "Very Hard" };
 
@@ -193,8 +194,10 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			int aiLevel = setupPlayerIsAI[i] ? setupPlayerDifficulty[i] : 0; 
 			String name = setupPlayerNames[i];
 			
+			int money = setupPlayerMoney[i];
+			
 			// Add the tank
-			Tank newTank = new Tank(name, randomX, terrain, playerColors[i % playerColors.length], startingAngle, i, aiLevel);
+			Tank newTank = new Tank(name, randomX, terrain, playerColors[i % playerColors.length], startingAngle, i, aiLevel, money);
 			players.add(newTank);
 			newTank.setDamageListener(this);
 		}
@@ -577,13 +580,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		boolean isAI = setupPlayerIsAI[currentPlayerSetupIndex];
 
 		// ==========================================
-		// BOX 1: EDITABLE NAME BOX
+		// EDITABLE NAME BOX
 		// ==========================================
-		int box1Y = HEIGHT / 2 - 50;
+		int nameBoxY = HEIGHT / 2 - 50;
 		g2d.setColor(new Color(25, 30, 55));
-		g2d.fillRect(WIDTH / 2 - 175, box1Y, 350, 50);
+		g2d.fillRect(WIDTH / 2 - 175, nameBoxY, 350, 50);
 		g2d.setColor(selectedSetupOption == 0 ? Color.YELLOW : Color.CYAN);
-		g2d.drawRect(WIDTH / 2 - 175, box1Y, 350, 50);
+		g2d.drawRect(WIDTH / 2 - 175, nameBoxY, 350, 50);
 
 		g2d.setFont(new Font("Arial", Font.BOLD, 20));
 		g2d.setColor(Color.WHITE);
@@ -592,35 +595,51 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		if (selectedSetupOption == 0 && (System.currentTimeMillis() / 500) % 2 == 0) {
 			nameText += "|";
 		}
-		g2d.drawString(nameText, WIDTH / 2 - 150, box1Y + 32);
+		g2d.drawString(nameText, WIDTH / 2 - 150, nameBoxY + 32);
+		
+		// ==========================================
+		// EDITABLE MONEY BOX
+		// ==========================================
+		int moneyBoxY = nameBoxY + 65;
+		g2d.setColor(new Color(25, 30, 55));
+		g2d.fillRect(WIDTH / 2 - 175, moneyBoxY, 350, 50);
+		g2d.setColor(selectedSetupOption == 1 ? Color.YELLOW : Color.CYAN);
+		g2d.drawRect(WIDTH / 2 - 175, moneyBoxY, 350, 50);
+
+		// Assuming setupPlayerMoney is an array storing either Strings or long/ints 
+		String moneyText = "MONEY: $" + setupPlayerMoney[currentPlayerSetupIndex];
+		if (selectedSetupOption == 1 && (System.currentTimeMillis() / 500) % 2 == 0) {
+			moneyText += "|";
+		}
+		g2d.drawString(moneyText, WIDTH / 2 - 150, moneyBoxY + 32);
 
 		// ==========================================
-		// BOX 2: CONTROLLER TYPE (HUMAN / AI)
+		// CONTROLLER TYPE (HUMAN / AI)
 		// ==========================================
-		int box2Y = box1Y + 65;
+		int controllerBoxY = moneyBoxY + 65;
 		g2d.setColor(new Color(25, 30, 55));
-		g2d.fillRect(WIDTH / 2 - 175, box2Y, 350, 50);
-		g2d.setColor(selectedSetupOption == 1 ? Color.YELLOW : Color.CYAN);
-		g2d.drawRect(WIDTH / 2 - 175, box2Y, 350, 50);
+		g2d.fillRect(WIDTH / 2 - 175, controllerBoxY, 350, 50);
+		g2d.setColor(selectedSetupOption == 2 ? Color.YELLOW : Color.CYAN);
+		g2d.drawRect(WIDTH / 2 - 175, controllerBoxY, 350, 50);
 
 		String typeText = "CONTROL: " + (isAI ? "AI" : "HUMAN");
-		g2d.drawString(typeText, WIDTH / 2 - 150, box2Y + 32);
+		g2d.drawString(typeText, WIDTH / 2 - 150, controllerBoxY + 32);
 
 		// ==========================================
-		// BOX 3: DIFFICULTY (ONLY VISIBLE IF AI)
+		// DIFFICULTY (ONLY VISIBLE IF AI)
 		// ==========================================
-		int nextButtonY = box2Y + 65;
+		int difficultyBoxY = controllerBoxY + 65;
 		if (isAI) {
 			g2d.setColor(new Color(25, 30, 55));
-			g2d.fillRect(WIDTH / 2 - 175, nextButtonY, 350, 50);
-			g2d.setColor(selectedSetupOption == 2 ? Color.YELLOW : Color.CYAN);
-			g2d.drawRect(WIDTH / 2 - 175, nextButtonY, 350, 50);
+			g2d.fillRect(WIDTH / 2 - 175, difficultyBoxY, 350, 50);
+			g2d.setColor(selectedSetupOption == 3 ? Color.YELLOW : Color.CYAN);
+			g2d.drawRect(WIDTH / 2 - 175, difficultyBoxY, 350, 50);
 
 			int diffValue = setupPlayerDifficulty[currentPlayerSetupIndex];
 			String diffText = "DIFFICULTY: " + difficultyLabels[diffValue - 1].toUpperCase();
-			g2d.drawString(diffText, WIDTH / 2 - 150, nextButtonY + 32);
+			g2d.drawString(diffText, WIDTH / 2 - 150, difficultyBoxY + 32);
 			
-			nextButtonY += 65;
+			difficultyBoxY += 65;
 		}
 		
 		// ==========================================
@@ -628,7 +647,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// ==========================================
 		g2d.setFont(new Font("Arial", Font.PLAIN, 18));
 		g2d.setColor(Color.YELLOW);
-		String footerLabel = (currentPlayerSetupIndex == selectedPlayerCount - 1) ? "START GAME" : "NEXT PLAYER";
+		String footerLabel = (currentPlayerSetupIndex == selectedPlayerCount - 1) ? "TO START GAME" : "NEXT PLAYER";
 		drawCenteredString(g2d, "PRESS ENTER " + footerLabel, HEIGHT - 50);
 	}
 
@@ -891,11 +910,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				setupPlayerNames = new String[selectedPlayerCount];
 				setupPlayerIsAI = new boolean[selectedPlayerCount];
 				setupPlayerDifficulty = new int[selectedPlayerCount];
+				setupPlayerMoney = new int[selectedPlayerCount];
 				
 				for (int i = 0; i < selectedPlayerCount; i++) {
 					setupPlayerNames[i] = "Player " + (i + 1);
-					setupPlayerIsAI[i] = (i > 0); // Default first player to Human, others to AI
-					setupPlayerDifficulty[i] = 3;  // Default to Medium (3)
+					setupPlayerIsAI[i] = (i > 0); 	// Default first player to Human, others to AI
+					setupPlayerDifficulty[i] = 3;  	// Default AI to Medium (3)
+					setupPlayerMoney[i] = 0;		// Default money to 0
 				}
 				
 				currentState = GameState.PLAYER_CONFIG;
@@ -906,7 +927,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Player Config Commands
 		else if (currentState == GameState.PLAYER_CONFIG) {
 			boolean isAI = setupPlayerIsAI[currentPlayerSetupIndex];
-			int totalOptions = isAI ? 3 : 2;
+			int totalOptions = isAI ? 4 : 3;
 
 			// UP Key
 			if (keyCode == KeyEvent.VK_UP) {
@@ -923,14 +944,14 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// LEFT / RIGHT Key
 			if (keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_RIGHT) {
 				SoundEngine.playMenuSelectSound();
-				if (selectedSetupOption == 1) {
+				if (selectedSetupOption == 2) {
 					// Toggle AI / Human
 					setupPlayerIsAI[currentPlayerSetupIndex] = !setupPlayerIsAI[currentPlayerSetupIndex];
 					// Reset selection validation context bounds if toggling fields away
 					if (!setupPlayerIsAI[currentPlayerSetupIndex] && selectedSetupOption == 3) {
 						selectedSetupOption = 2;
 					}
-				} else if (selectedSetupOption == 2 && isAI) {
+				} else if (selectedSetupOption == 3 && isAI) {
 					// Adjust Difficulty
 					int currentDiff = setupPlayerDifficulty[currentPlayerSetupIndex];
 					if (keyCode == KeyEvent.VK_RIGHT && currentDiff < 5) setupPlayerDifficulty[currentPlayerSetupIndex]++;
@@ -939,12 +960,18 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			}
 
 			// BACKSPACE Key
-			if (keyCode == KeyEvent.VK_BACK_SPACE && selectedSetupOption == 0) {
-				String currentName = setupPlayerNames[currentPlayerSetupIndex];
-				if (currentName.length() > 0) {
-					setupPlayerNames[currentPlayerSetupIndex] = currentName.substring(0, currentName.length() - 1);
-				}
-			}
+		    if (keyCode == KeyEvent.VK_BACK_SPACE) {
+		        if (selectedSetupOption == 0) {
+		        	// Remove the last character from name
+		            String currentName = setupPlayerNames[currentPlayerSetupIndex];
+		            if (currentName.length() > 0) {
+		                setupPlayerNames[currentPlayerSetupIndex] = currentName.substring(0, currentName.length() - 1);
+		            }
+		        } else if (selectedSetupOption == 1) {
+		            // Remove the last digit from money
+		            setupPlayerMoney[currentPlayerSetupIndex] /= 10;
+		        }
+		    }
 
 			// ESCAPE Key
 			if (keyCode == KeyEvent.VK_ESCAPE) {
@@ -1125,12 +1152,29 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	@Override
 	public void keyTyped(KeyEvent e) {
-		if (currentState == GameState.PLAYER_CONFIG && selectedSetupOption == 0) {
+		if (currentState == GameState.PLAYER_CONFIG) {
 			char c = e.getKeyChar();
-			// Accept only printable characters up to a reasonable length limit
-			if (c != KeyEvent.CHAR_UNDEFINED && c != '\n' && c != '\b' && setupPlayerNames[currentPlayerSetupIndex].length() < 15) {
-				setupPlayerNames[currentPlayerSetupIndex] += c;
-			}
+			
+			// Edit Player Name
+			if (selectedSetupOption == 0) {
+	            if (c != KeyEvent.CHAR_UNDEFINED && c != '\n' && c != '\b' 
+	                    && setupPlayerNames[currentPlayerSetupIndex].length() < 15) {
+	                setupPlayerNames[currentPlayerSetupIndex] += c;
+	            }
+	        } 
+	        // Edit Player Money
+	        else if (selectedSetupOption == 1) {
+	            if (Character.isDigit(c)) {
+	                int digit = Character.getNumericValue(c);
+	                long currentMoney = setupPlayerMoney[currentPlayerSetupIndex];
+	                long newMoney = (currentMoney * 10) + digit;
+
+	                // Prevent overflow beyond Integer.MAX_VALUE or cap at max starting cash (e.g. $999,999)
+	                if (newMoney <= 999999) {
+	                    setupPlayerMoney[currentPlayerSetupIndex] = (int) newMoney;
+	                }
+	            }
+	        }
 		}
 	}
 
