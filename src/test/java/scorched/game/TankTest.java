@@ -18,6 +18,7 @@ class TankTest {
     private final Color tankColor = Color.GREEN;
     private final int playerIndex = 1;
     private final String tankName = "TestTank";
+    private final int startingMoney = 500;
 
     @BeforeEach
     void setUp() {
@@ -31,8 +32,8 @@ class TankTest {
     @Test
     void testConstructorSnapsToTerrainAndInitializesAI() {
         // Tank height is 14. Terrain is 200. Expected Y = 200 - 14 = 186
-        // Passing aiLevel = 1 to verify AI initialization
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 1);
+        // Passing aiLevel = 1 to verify AI initialization and 500 starting money
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 1, startingMoney);
 
         assertEquals(tankName, tank.getName());
         assertEquals(100, tank.getX());
@@ -40,21 +41,23 @@ class TankTest {
         assertEquals(90, tank.getBarrelAngle());
         assertEquals(tankColor, tank.getColor());
         assertEquals(playerIndex, tank.getPlayerIndex());
+        assertEquals(startingMoney, tank.getMoney());
         assertTrue(tank.isAlive());
         assertEquals(100, tank.getHealth());
         assertNotNull(tank.getAI());
+        assertNotNull(tank.getInventory());
     }
 
     @Test
     void testConstructorWithoutAI() {
         // Passing aiLevel = 0 should leave AI as null
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
         assertNull(tank.getAI());
     }
 
     @Test
     void testChangeAngleClamping() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
 
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
             // Test normal adjustments
@@ -74,7 +77,7 @@ class TankTest {
 
     @Test
     void testSetBarrelAngle() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
 
         tank.setBarrelAngle(120);
         assertEquals(120, tank.getBarrelAngle());
@@ -88,7 +91,7 @@ class TankTest {
 
     @Test
     void testChangePowerClamping() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
         assertEquals(10.0, tank.getPower());
 
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
@@ -97,11 +100,11 @@ class TankTest {
             assertEquals(15.5, tank.getPower());
             mockedSoundEngine.verify(() -> SoundEngine.playPowerChargeSound(15.5), times(1));
 
-            // Test upper bound clamping (updated to match MAX_POWER = 50.0)
+            // Test upper bound clamping (MAX_POWER = 50.0)
             tank.changePower(40.0);
             assertEquals(50.0, tank.getPower());
 
-            // Test lower bound clamping (min 1.0)
+            // Test lower bound clamping (MIN_POWER = 1.0)
             tank.changePower(-60.0);
             assertEquals(1.0, tank.getPower());
         }
@@ -109,7 +112,7 @@ class TankTest {
 
     @Test
     void testSetPower() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
 
         tank.setPower(18.5);
         assertEquals(18.5, tank.getPower());
@@ -124,7 +127,7 @@ class TankTest {
     @Test
     void testCheckHit() {
         // Tank is at X=100, Y=186. Width=30 (X bounds: 85 to 115). Height=14 (Y bounds: 186 to 200)
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
 
         // Center hit
         assertTrue(tank.checkHit(100, 190));
@@ -141,7 +144,7 @@ class TankTest {
 
     @Test
     void testApplyGravity_WhileFallingAndLanding() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
         tank.setDamageListener(mockDamageListener);
 
         // Suddenly change terrain height drastically downward so the tank is in mid-air
@@ -177,7 +180,7 @@ class TankTest {
 
     @Test
     void testTakeDamageAndDeath() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
         tank.setDamageListener(mockDamageListener);
 
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
@@ -206,7 +209,7 @@ class TankTest {
 
     @Test
     void testReset() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0);
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
         
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
             tank.takeDamage(100);
@@ -216,5 +219,20 @@ class TankTest {
             assertTrue(tank.isAlive());
             assertEquals(100, tank.getHealth());
         }
+    }
+
+    @Test
+    void testMoneyOperations() {
+        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, 200);
+        assertEquals(200, tank.getMoney());
+
+        tank.addMoney(150);
+        assertEquals(350, tank.getMoney());
+
+        tank.removeMoney(50);
+        assertEquals(300, tank.getMoney());
+
+        tank.setMoney(1000);
+        assertEquals(1000, tank.getMoney());
     }
 }

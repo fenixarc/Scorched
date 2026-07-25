@@ -24,18 +24,25 @@ class GameEngineTest {
         gameEngine = new GameEngine(800, 600);
     }
 
+    private void setState(GameEngine.GameState state) throws Exception {
+        Field stateField = GameEngine.class.getDeclaredField("currentState");
+        stateField.setAccessible(true);
+        stateField.set(gameEngine, state);
+    }
+
+    private GameEngine.GameState getState() throws Exception {
+        Field stateField = GameEngine.class.getDeclaredField("currentState");
+        stateField.setAccessible(true);
+        return (GameEngine.GameState) stateField.get(gameEngine);
+    }
+
     @Test
     @DisplayName("Initialization sets correct default states")
     void testInitialState() throws Exception {
         assertEquals(800, gameEngine.WIDTH);
         assertEquals(600, gameEngine.HEIGHT);
         
-        // Verify initial private Enum State
-        Field stateField = GameEngine.class.getDeclaredField("currentState");
-        stateField.setAccessible(true);
-        Object state = stateField.get(gameEngine);
-        
-        assertEquals("MAIN_MENU", state.toString());
+        assertEquals(GameEngine.GameState.MAIN_MENU, getState());
     }
 
     @Test
@@ -148,56 +155,86 @@ class GameEngineTest {
     }
 
     @Test
-    @DisplayName("Enter key switches state from MAIN_MENU to PLAYING and starts game loop execution")
-    void testGameStartTransitions() throws Exception {
+    @DisplayName("Enter key switches state from MAIN_MENU to PLAYER_CONFIG")
+    void testGameStartTransitionsToPlayerConfig() throws Exception {
         KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(enterEvent);
 
-        Field stateField = GameEngine.class.getDeclaredField("currentState");
-        stateField.setAccessible(true);
-        assertEquals("PLAYING", stateField.get(gameEngine).toString());
+        assertEquals(GameEngine.GameState.PLAYER_CONFIG, getState(), "ENTER on MAIN_MENU should navigate to PLAYER_CONFIG");
+    }
+
+    @Test
+    @DisplayName("Player Config: Confirming all players transitions to PLAYING")
+    void testPlayerConfigCompletionToPlaying() throws Exception {
+        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
+        
+        // Enter from MAIN_MENU into PLAYER_CONFIG (2 players by default)
+        gameEngine.keyPressed(enterEvent);
+        assertEquals(GameEngine.GameState.PLAYER_CONFIG, getState());
+
+        // Confirm Player 1
+        gameEngine.keyPressed(enterEvent);
+        // Confirm Player 2 (final player) -> triggers startNewGame() & transitions to PLAYING
+        gameEngine.keyPressed(enterEvent);
+
+        assertEquals(GameEngine.GameState.PLAYING, getState(), "Confirming setup for all players should start the game and switch state to PLAYING");
+    }
+
+    @Test
+    @DisplayName("Player Config: Text typing modifies player name and backspace deletes characters")
+    void testPlayerConfigNameEditing() throws Exception {
+        // Transition to PLAYER_CONFIG
+        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(enterEvent);
+
+        Field namesField = GameEngine.class.getDeclaredField("setupPlayerNames");
+        namesField.setAccessible(true);
+
+        // Type 'A'
+        KeyEvent typeA = new KeyEvent(gameEngine, KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, 'A');
+        gameEngine.keyTyped(typeA);
+
+        String[] names = (String[]) namesField.get(gameEngine);
+        assertEquals("Player 1A", names[0]);
+
+        // Press Backspace
+        KeyEvent backspace = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_BACK_SPACE, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(backspace);
+
+        names = (String[]) namesField.get(gameEngine);
+        assertEquals("Player 1", names[0]);
     }
 
     @Test
     @DisplayName("Gameplay: Escape key pauses and unpauses the game engine fluidly")
     void testPauseStateToggle() throws Exception {
-        Field stateField = GameEngine.class.getDeclaredField("currentState");
-        stateField.setAccessible(true);
-
         Field pauseOptionField = GameEngine.class.getDeclaredField("selectedPauseOption");
         pauseOptionField.setAccessible(true);
 
-        // Force transition out of Main Menu directly into active state gameplay
-        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
-        gameEngine.keyPressed(enterEvent);
-        assertEquals("PLAYING", stateField.get(gameEngine).toString());
+        // Transition into active gameplay
+        setState(GameEngine.GameState.PLAYING);
+        assertEquals(GameEngine.GameState.PLAYING, getState());
 
         // Press Escape -> State moves to PAUSED and focuses selection at index 0 (Settings)
         KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(escapeEvent);
         
-        assertEquals("PAUSED", stateField.get(gameEngine).toString(), "Pressing Escape during game should switch state to PAUSED");
+        assertEquals(GameEngine.GameState.PAUSED, getState(), "Pressing Escape during game should switch state to PAUSED");
         assertEquals(0, pauseOptionField.get(gameEngine), "Entering pause menu should reset selected index to 0 (Settings)");
 
         // Press Escape again -> Resumes execution processing smoothly back inside active gameplay state
         gameEngine.keyPressed(escapeEvent);
-        assertEquals("PLAYING", stateField.get(gameEngine).toString(), "Pressing Escape while paused should resume back to PLAYING");
+        assertEquals(GameEngine.GameState.PLAYING, getState(), "Pressing Escape while paused should resume back to PLAYING");
     }
 
     @Test
     @DisplayName("Pause Menu: UP/DOWN arrow keys correctly toggle targeted menu item options indexes")
     void testPauseMenuNavigation() throws Exception {
-        Field stateField = GameEngine.class.getDeclaredField("currentState");
-        stateField.setAccessible(true);
-        
         Field pauseOptionField = GameEngine.class.getDeclaredField("selectedPauseOption");
         pauseOptionField.setAccessible(true);
 
-        // Route state directly into active pause menu mode
-        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
-        gameEngine.keyPressed(enterEvent);
-        KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
-        gameEngine.keyPressed(escapeEvent);
+        // Transition into PAUSED state directly
+        setState(GameEngine.GameState.PAUSED);
 
         // Test Down selection modification -> increments list cursor forward to 1 (Exit Battle)
         KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
@@ -213,35 +250,25 @@ class GameEngineTest {
     @Test
     @DisplayName("Pause Menu: Confirming 'Exit Battle' breaks from processing lifecycle loops and returns back to MAIN_MENU")
     void testPauseMenuExitAction() throws Exception {
-        Field stateField = GameEngine.class.getDeclaredField("currentState");
-        stateField.setAccessible(true);
-
-        // Move execution states downstream into active pause mode
-        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
-        gameEngine.keyPressed(enterEvent);
-        KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
-        gameEngine.keyPressed(escapeEvent);
+        // Set state directly to PAUSED
+        setState(GameEngine.GameState.PAUSED);
 
         // Highlight option index 1 ('Exit Battle')
         KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(downEvent);
 
         // Press ENTER to register submission confirmation choice
+        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(enterEvent);
-        assertEquals("MAIN_MENU", stateField.get(gameEngine).toString(), "Confirming 'Exit Battle' must return engine cleanly to MAIN_MENU state");
+        
+        assertEquals(GameEngine.GameState.MAIN_MENU, getState(), "Confirming 'Exit Battle' must return engine cleanly to MAIN_MENU state");
     }
 
     @Test
     @DisplayName("Pause State: Active runtime loops and entity lifecycle operations short-circuit while frozen")
     void testUpdateIsFrozenWhenPaused() throws Exception {
-        Field stateField = GameEngine.class.getDeclaredField("currentState");
-        stateField.setAccessible(true);
-
-        // Route state loops down into active PAUSED mode processing structures
-        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
-        gameEngine.keyPressed(enterEvent);
-        KeyEvent escapeEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
-        gameEngine.keyPressed(escapeEvent);
+        // Set state to PAUSED
+        setState(GameEngine.GameState.PAUSED);
 
         // Append mock tracking metadata items into target arrays
         Field textListField = GameEngine.class.getDeclaredField("floatingTexts");
@@ -257,7 +284,7 @@ class GameEngineTest {
         updateMethod.setAccessible(true);
         updateMethod.invoke(gameEngine);
 
-        // Assure lists values remain fully unchanged
+        // Assure list values remain fully unchanged
         List<?> textListAfter = (List<?>) textListField.get(gameEngine);
         assertEquals(textListBefore.size(), textListAfter.size(), "Update loop should early-exit and not update object lifecycles when paused");
     }
