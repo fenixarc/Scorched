@@ -46,6 +46,10 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private GameState currentState = GameState.MAIN_MENU;
 	private volatile boolean isGeneratingWorld = false;
 	
+	// All Menus
+	private static int BOX_HEIGHT = 60;
+	private static int BOX_GAP = 20;
+	
 	// Main Menu
 	private BufferedImage splashImage;
 	private HillTypes selectedHillType;
@@ -516,11 +520,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	    // Dynamic rendering of Main Menu options via MenuUI
 	    MainMenuOptions[] options = MainMenuOptions.values();
-	    int boxHeight = 60;
-	    int gap = 20;
 
 	    for (int i = 0; i < options.length; i++) {
-	        int boxY = HEIGHT / 2 - 15 + (i * (boxHeight + gap));
+	        int boxY = HEIGHT / 2 - 15 + (i * (BOX_HEIGHT + BOX_GAP));
 	        boolean isSelected = (options[i] == selectedMainMenuOption);
 
 	        String displayText;
@@ -530,7 +532,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	            displayText = "HILLS: " + selectedHillType.getLabel().toUpperCase();
 	        }
 
-	        MenuUI.drawMenuOptionBox(g2d, displayText, boxY, 300, boxHeight, isSelected);
+	        MenuUI.drawMenuOptionBox(g2d, displayText, boxY, 300, BOX_HEIGHT, isSelected);
 	    }
 
 	    // Footer
@@ -559,8 +561,6 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		boolean isAI = setupPlayerIsAI[currentPlayerSetupIndex];
 
 		PlayerConfigMenuOptions[] options = PlayerConfigMenuOptions.values();
-		int boxHeight = 50;
-		int gap = 15;
 		int startY = HEIGHT / 2 - 50;
 
 		for (int i = 0; i < options.length; i++) {
@@ -571,7 +571,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				continue;
 			}
 
-			int boxY = startY + (i * (boxHeight + gap));
+			int boxY = startY + (i * (BOX_HEIGHT + BOX_GAP));
 			boolean isSelected = (option == selectedPlayerConfigOption);
 			boolean isCursorBlinking = (System.currentTimeMillis() / 500) % 2 == 0;
 
@@ -597,7 +597,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				break;
 			}
 
-			MenuUI.drawMenuOptionBox(g2d, displayText, boxY, 350, boxHeight, isSelected);
+			MenuUI.drawMenuOptionBox(g2d, displayText, boxY, 350, BOX_HEIGHT, isSelected);
 		}
 
 		// Footer
@@ -682,14 +682,12 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	    // Dynamic rendering loop over Enum values
 	    PauseMenuOptions[] options = PauseMenuOptions.values();
-	    int boxHeight = 60;
-	    int gap = 20;
 
 	    for (int i = 0; i < options.length; i++) {
-	        int boxY = HEIGHT / 2 - 15 + (i * (boxHeight + gap));
+	        int boxY = HEIGHT / 2 - 15 + (i * (BOX_HEIGHT + BOX_GAP));
 	        boolean isSelected = (options[i] == selectedPauseOption);
 
-	        MenuUI.drawMenuOptionBox(g2d, options[i].getLabel(), boxY, 300, boxHeight, isSelected);
+	        MenuUI.drawMenuOptionBox(g2d, options[i].getLabel(), boxY, 300, BOX_HEIGHT, isSelected);
 	    }
 	}
 	
