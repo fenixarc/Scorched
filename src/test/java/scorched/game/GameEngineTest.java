@@ -3,9 +3,11 @@ package scorched.game;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import scorched.enums.HillTypes;
+
 import scorched.enums.MainMenuOptions;
 import scorched.enums.PauseMenuOptions;
+import scorched.enums.PlayerConfigMenuOptions;
+import scorched.enums.PlayerDifficulty;
 import scorched.weapons.HERound;
 
 import java.awt.event.KeyEvent;
@@ -51,21 +53,21 @@ class GameEngineTest {
     @Test
     @DisplayName("Main Menu: Menu selection toggles cleanly between Players and Hills options")
     void testMainMenuNavigation() throws Exception {
-        Field mainMenuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
-        mainMenuOptField.setAccessible(true);
+        Field menuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
+        menuOptField.setAccessible(true);
 
-        // Default should be PLAYERS
-        assertEquals(MainMenuOptions.PLAYERS, mainMenuOptField.get(gameEngine));
+        // Default should be MainMenuOptions.PLAYERS
+        assertEquals(MainMenuOptions.PLAYERS, menuOptField.get(gameEngine));
 
-        // Press DOWN arrow -> should change to HILLS
+        // Press DOWN arrow -> should change to MainMenuOptions.HILLS
         KeyEvent downEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(downEvent);
-        assertEquals(MainMenuOptions.HILLS, mainMenuOptField.get(gameEngine));
+        assertEquals(MainMenuOptions.HILLS, menuOptField.get(gameEngine));
 
-        // Press UP arrow -> should return to PLAYERS
+        // Press UP arrow -> should return to MainMenuOptions.PLAYERS
         KeyEvent upEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_UP, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(upEvent);
-        assertEquals(MainMenuOptions.PLAYERS, mainMenuOptField.get(gameEngine));
+        assertEquals(MainMenuOptions.PLAYERS, menuOptField.get(gameEngine));
     }
 
     @Test
@@ -74,10 +76,10 @@ class GameEngineTest {
         Field countField = GameEngine.class.getDeclaredField("selectedPlayerCount");
         countField.setAccessible(true);
         
-        // Ensure Players configuration row is highlighted
-        Field mainMenuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
-        mainMenuOptField.setAccessible(true);
-        mainMenuOptField.set(gameEngine, MainMenuOptions.PLAYERS);
+        // Ensure PLAYERS option row is highlighted via the selectedMainMenuOption enum
+        Field menuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
+        menuOptField.setAccessible(true);
+        menuOptField.set(gameEngine, MainMenuOptions.PLAYERS);
 
         // Default player count is 2. Press RIGHT 3 times -> should equal 5
         KeyEvent rightEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_RIGHT, KeyEvent.CHAR_UNDEFINED);
@@ -103,10 +105,10 @@ class GameEngineTest {
         // Set up base scenario above baseline floor
         countField.set(gameEngine, 4);
 
-        // Ensure Players row is highlighted
-        Field mainMenuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
-        mainMenuOptField.setAccessible(true);
-        mainMenuOptField.set(gameEngine, MainMenuOptions.PLAYERS);
+        // Ensure Players row is highlighted via selectedMainMenuOption enum
+        Field menuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
+        menuOptField.setAccessible(true);
+        menuOptField.set(gameEngine, MainMenuOptions.PLAYERS);
 
         KeyEvent leftEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_LEFT, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(leftEvent);
@@ -126,23 +128,23 @@ class GameEngineTest {
         Field hillTypeField = GameEngine.class.getDeclaredField("selectedHillType");
         hillTypeField.setAccessible(true);
 
-        // Navigate menu selection cursor explicitly down onto Hills options row
-        Field mainMenuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
-        mainMenuOptField.setAccessible(true);
-        mainMenuOptField.set(gameEngine, MainMenuOptions.HILLS);
+        // Highlight the Hills option in the Main Menu
+        Field menuOptField = GameEngine.class.getDeclaredField("selectedMainMenuOption");
+        menuOptField.setAccessible(true);
+        menuOptField.set(gameEngine, MainMenuOptions.HILLS);
 
         // Default setting starts at RANDOM
-        assertEquals(HillTypes.RANDOM, hillTypeField.get(gameEngine));
+        assertEquals(scorched.enums.HillTypes.RANDOM, hillTypeField.get(gameEngine));
 
-        // Cycle through options via RIGHT arrow key inputs
+        // Cycle right through HillTypes via RIGHT arrow key inputs
         KeyEvent rightEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_RIGHT, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(rightEvent);
-        assertEquals(HillTypes.RANDOM.next(), hillTypeField.get(gameEngine));
+        assertEquals(scorched.enums.HillTypes.RANDOM.next(), hillTypeField.get(gameEngine));
 
-        // Cycle backwards using LEFT arrow key inputs
+        // Cycle left through HillTypes via LEFT arrow key inputs
         KeyEvent leftEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_LEFT, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(leftEvent);
-        assertEquals(HillTypes.RANDOM, hillTypeField.get(gameEngine));
+        assertEquals(scorched.enums.HillTypes.RANDOM, hillTypeField.get(gameEngine));
     }
 
     @Test
@@ -372,5 +374,33 @@ class GameEngineTest {
         // Assert
         assertNotNull(activeProjectileField.get(gameEngine), "An active projectile should be generated");
         assertTrue((boolean) lockControlsField.get(gameEngine), "Controls should lock upon firing");
+    }
+    
+    @Test
+    @DisplayName("Player Config: Changing difficulty cycles PlayerDifficulty enum for AI players")
+    void testPlayerConfigDifficultyCycling() throws Exception {
+        KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(enterEvent); // Navigate to PLAYER_CONFIG
+
+        Field difficultyField = GameEngine.class.getDeclaredField("setupPlayerDifficulty");
+        difficultyField.setAccessible(true);
+        PlayerDifficulty[] initialDiffs = (PlayerDifficulty[]) difficultyField.get(gameEngine);
+        
+        // Player 2 defaults to AI and PlayerDifficulty.MEDIUM
+        assertEquals(PlayerDifficulty.MEDIUM, initialDiffs[1]);
+
+        // Move to Player 2 config
+        gameEngine.keyPressed(enterEvent); 
+
+        Field configOptField = GameEngine.class.getDeclaredField("selectedPlayerConfigOption");
+        configOptField.setAccessible(true);
+        configOptField.set(gameEngine, PlayerConfigMenuOptions.DIFFICULTY);
+
+        // Press RIGHT arrow -> should cycle to HARD (or next difficulty)
+        KeyEvent rightEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_RIGHT, KeyEvent.CHAR_UNDEFINED);
+        gameEngine.keyPressed(rightEvent);
+
+        PlayerDifficulty[] updatedDiffs = (PlayerDifficulty[]) difficultyField.get(gameEngine);
+        assertEquals(PlayerDifficulty.MEDIUM.next(), updatedDiffs[1]);
     }
 }

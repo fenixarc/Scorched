@@ -5,6 +5,8 @@ import javax.swing.JPanel;
 import scorched.enums.HillTypes;
 import scorched.enums.MainMenuOptions;
 import scorched.enums.PauseMenuOptions;
+import scorched.enums.PlayerConfigMenuOptions;
+import scorched.enums.PlayerDifficulty;
 import scorched.sound.MusicTrack;
 import scorched.sound.MusicTracksList;
 import scorched.sound.SoundEngine;
@@ -53,10 +55,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private int currentPlayerSetupIndex = 0;
 	private String[] setupPlayerNames;
 	private boolean[] setupPlayerIsAI;      // false = Human, true = AI
-	private int[] setupPlayerDifficulty;    // 1 to 5
+	private PlayerDifficulty[] setupPlayerDifficulty;
 	private int[] setupPlayerMoney;
-	private int selectedSetupOption = 0;    // 0 = Name, 1 = Type, 2 = Difficulty / Next Button
-	private final String[] difficultyLabels = { "Very Easy", "Easy", "Medium", "Hard", "Very Hard" };
+	private PlayerConfigMenuOptions selectedPlayerConfigOption;
 
 	// Pause Menu Selection
 	private PauseMenuOptions selectedPauseOption = PauseMenuOptions.SETTINGS;
@@ -192,7 +193,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			int startingAngle = (randomX < WIDTH / 2) ? 45 : 135;
 
 			// Setup AI and player name
-			int aiLevel = setupPlayerIsAI[i] ? setupPlayerDifficulty[i] : 0; 
+			int aiLevel = setupPlayerIsAI[i] ? setupPlayerDifficulty[i].getLevel() : 0;
 			String name = setupPlayerNames[i];
 			
 			int money = setupPlayerMoney[i];
@@ -557,72 +558,49 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 		boolean isAI = setupPlayerIsAI[currentPlayerSetupIndex];
 
-		// ==========================================
-		// EDITABLE NAME BOX
-		// ==========================================
-		int nameBoxY = HEIGHT / 2 - 50;
-		g2d.setColor(new Color(25, 30, 55));
-		g2d.fillRect(WIDTH / 2 - 175, nameBoxY, 350, 50);
-		g2d.setColor(selectedSetupOption == 0 ? Color.YELLOW : Color.CYAN);
-		g2d.drawRect(WIDTH / 2 - 175, nameBoxY, 350, 50);
+		PlayerConfigMenuOptions[] options = PlayerConfigMenuOptions.values();
+		int boxHeight = 50;
+		int gap = 15;
+		int startY = HEIGHT / 2 - 50;
 
-		g2d.setFont(new Font("Arial", Font.BOLD, 20));
-		g2d.setColor(Color.WHITE);
-		String nameText = "NAME: " + setupPlayerNames[currentPlayerSetupIndex];
-		// Add a blinking cursor effect if selected
-		if (selectedSetupOption == 0 && (System.currentTimeMillis() / 500) % 2 == 0) {
-			nameText += "|";
+		for (int i = 0; i < options.length; i++) {
+			PlayerConfigMenuOptions option = options[i];
+
+			// Skip DIFFICULTY box if human player
+			if (option == PlayerConfigMenuOptions.DIFFICULTY && !isAI) {
+				continue;
+			}
+
+			int boxY = startY + (i * (boxHeight + gap));
+			boolean isSelected = (option == selectedPlayerConfigOption);
+			boolean isCursorBlinking = (System.currentTimeMillis() / 500) % 2 == 0;
+
+			String displayText = "";
+			switch (option) {
+			case NAME:
+				displayText = "NAME: " + setupPlayerNames[currentPlayerSetupIndex];
+				if (isSelected && isCursorBlinking) {
+					displayText += "|";
+				}
+				break;
+			case MONEY:
+				displayText = "MONEY: $" + setupPlayerMoney[currentPlayerSetupIndex];
+				if (isSelected && isCursorBlinking) {
+					displayText += "|";
+				}
+				break;
+			case CONTROL:
+				displayText = "CONTROL: " + (isAI ? "AI" : "HUMAN");
+				break;
+			case DIFFICULTY:
+				displayText = "DIFFICULTY: " + setupPlayerDifficulty[currentPlayerSetupIndex].getLabel().toUpperCase();
+				break;
+			}
+
+			MenuUI.drawMenuOptionBox(g2d, displayText, boxY, 350, boxHeight, isSelected);
 		}
-		g2d.drawString(nameText, WIDTH / 2 - 150, nameBoxY + 32);
-		
-		// ==========================================
-		// EDITABLE MONEY BOX
-		// ==========================================
-		int moneyBoxY = nameBoxY + 65;
-		g2d.setColor(new Color(25, 30, 55));
-		g2d.fillRect(WIDTH / 2 - 175, moneyBoxY, 350, 50);
-		g2d.setColor(selectedSetupOption == 1 ? Color.YELLOW : Color.CYAN);
-		g2d.drawRect(WIDTH / 2 - 175, moneyBoxY, 350, 50);
 
-		// Assuming setupPlayerMoney is an array storing either Strings or long/ints 
-		String moneyText = "MONEY: $" + setupPlayerMoney[currentPlayerSetupIndex];
-		if (selectedSetupOption == 1 && (System.currentTimeMillis() / 500) % 2 == 0) {
-			moneyText += "|";
-		}
-		g2d.drawString(moneyText, WIDTH / 2 - 150, moneyBoxY + 32);
-
-		// ==========================================
-		// CONTROLLER TYPE (HUMAN / AI)
-		// ==========================================
-		int controllerBoxY = moneyBoxY + 65;
-		g2d.setColor(new Color(25, 30, 55));
-		g2d.fillRect(WIDTH / 2 - 175, controllerBoxY, 350, 50);
-		g2d.setColor(selectedSetupOption == 2 ? Color.YELLOW : Color.CYAN);
-		g2d.drawRect(WIDTH / 2 - 175, controllerBoxY, 350, 50);
-
-		String typeText = "CONTROL: " + (isAI ? "AI" : "HUMAN");
-		g2d.drawString(typeText, WIDTH / 2 - 150, controllerBoxY + 32);
-
-		// ==========================================
-		// DIFFICULTY (ONLY VISIBLE IF AI)
-		// ==========================================
-		int difficultyBoxY = controllerBoxY + 65;
-		if (isAI) {
-			g2d.setColor(new Color(25, 30, 55));
-			g2d.fillRect(WIDTH / 2 - 175, difficultyBoxY, 350, 50);
-			g2d.setColor(selectedSetupOption == 3 ? Color.YELLOW : Color.CYAN);
-			g2d.drawRect(WIDTH / 2 - 175, difficultyBoxY, 350, 50);
-
-			int diffValue = setupPlayerDifficulty[currentPlayerSetupIndex];
-			String diffText = "DIFFICULTY: " + difficultyLabels[diffValue - 1].toUpperCase();
-			g2d.drawString(diffText, WIDTH / 2 - 150, difficultyBoxY + 32);
-			
-			difficultyBoxY += 65;
-		}
-		
-		// ==========================================
-		// FOOTER
-		// ==========================================
+		// Footer
 		g2d.setFont(new Font("Arial", Font.PLAIN, 18));
 		g2d.setColor(Color.YELLOW);
 		String footerLabel = (currentPlayerSetupIndex == selectedPlayerCount - 1) ? "TO START GAME" : "NEXT PLAYER";
@@ -869,16 +847,16 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				
 				// Initialize setup configurations based on the selected player count
 				currentPlayerSetupIndex = 0;
-				selectedSetupOption = 0;
+				selectedPlayerConfigOption = PlayerConfigMenuOptions.NAME;
 				setupPlayerNames = new String[selectedPlayerCount];
 				setupPlayerIsAI = new boolean[selectedPlayerCount];
-				setupPlayerDifficulty = new int[selectedPlayerCount];
+				setupPlayerDifficulty = new PlayerDifficulty[selectedPlayerCount];
 				setupPlayerMoney = new int[selectedPlayerCount];
 				
 				for (int i = 0; i < selectedPlayerCount; i++) {
 					setupPlayerNames[i] = "Player " + (i + 1);
 					setupPlayerIsAI[i] = (i > 0); 	// Default first player to Human, others to AI
-					setupPlayerDifficulty[i] = 3;  	// Default AI to Medium (3)
+					setupPlayerDifficulty[i] = PlayerDifficulty.MEDIUM; // Default AI to Medium
 					setupPlayerMoney[i] = 0;		// Default money to 0
 				}
 				
@@ -890,47 +868,48 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Player Config Commands
 		else if (currentState == GameState.PLAYER_CONFIG) {
 			boolean isAI = setupPlayerIsAI[currentPlayerSetupIndex];
-			int totalOptions = isAI ? 4 : 3;
 
 			// UP Key
 			if (keyCode == KeyEvent.VK_UP) {
 				SoundEngine.playMenuSelectSound();
-				selectedSetupOption = (selectedSetupOption - 1 + totalOptions) % totalOptions;
+				selectedPlayerConfigOption = selectedPlayerConfigOption.previous(isAI);
 			}
 			
 			// DOWN Key
 			if (keyCode == KeyEvent.VK_DOWN) {
 				SoundEngine.playMenuSelectSound();
-				selectedSetupOption = (selectedSetupOption + 1) % totalOptions;
+				selectedPlayerConfigOption = selectedPlayerConfigOption.next(isAI);
 			}
 
 			// LEFT / RIGHT Key
 			if (keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_RIGHT) {
 				SoundEngine.playMenuSelectSound();
-				if (selectedSetupOption == 2) {
+				if (selectedPlayerConfigOption == PlayerConfigMenuOptions.CONTROL) {
 					// Toggle AI / Human
 					setupPlayerIsAI[currentPlayerSetupIndex] = !setupPlayerIsAI[currentPlayerSetupIndex];
-					// Reset selection validation context bounds if toggling fields away
-					if (!setupPlayerIsAI[currentPlayerSetupIndex] && selectedSetupOption == 3) {
-						selectedSetupOption = 2;
+					// Reset selection to CONTROL if human and was somehow pointing to DIFFICULTY
+					if (!setupPlayerIsAI[currentPlayerSetupIndex] && selectedPlayerConfigOption == PlayerConfigMenuOptions.DIFFICULTY) {
+						selectedPlayerConfigOption = PlayerConfigMenuOptions.CONTROL;
 					}
-				} else if (selectedSetupOption == 3 && isAI) {
+				} else if (selectedPlayerConfigOption == PlayerConfigMenuOptions.DIFFICULTY && isAI) {
 					// Adjust Difficulty
-					int currentDiff = setupPlayerDifficulty[currentPlayerSetupIndex];
-					if (keyCode == KeyEvent.VK_RIGHT && currentDiff < 5) setupPlayerDifficulty[currentPlayerSetupIndex]++;
-					if (keyCode == KeyEvent.VK_LEFT && currentDiff > 1) setupPlayerDifficulty[currentPlayerSetupIndex]--;
+					if (keyCode == KeyEvent.VK_RIGHT) {
+						setupPlayerDifficulty[currentPlayerSetupIndex] = setupPlayerDifficulty[currentPlayerSetupIndex].next();
+					} else if (keyCode == KeyEvent.VK_LEFT) {
+						setupPlayerDifficulty[currentPlayerSetupIndex] = setupPlayerDifficulty[currentPlayerSetupIndex].previous();
+					}
 				}
 			}
 
 			// BACKSPACE Key
 		    if (keyCode == KeyEvent.VK_BACK_SPACE) {
-		        if (selectedSetupOption == 0) {
+		        if (selectedPlayerConfigOption == PlayerConfigMenuOptions.NAME) {
 		        	// Remove the last character from name
 		            String currentName = setupPlayerNames[currentPlayerSetupIndex];
 		            if (currentName.length() > 0) {
 		                setupPlayerNames[currentPlayerSetupIndex] = currentName.substring(0, currentName.length() - 1);
 		            }
-		        } else if (selectedSetupOption == 1) {
+		        } else if (selectedPlayerConfigOption == PlayerConfigMenuOptions.MONEY) {
 		            // Remove the last digit from money
 		            setupPlayerMoney[currentPlayerSetupIndex] /= 10;
 		        }
@@ -947,7 +926,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				SoundEngine.playMenuConfirmSound();
 				if (currentPlayerSetupIndex < selectedPlayerCount - 1) {
 					currentPlayerSetupIndex++;
-					selectedSetupOption = 0; // Reset focus to top for next player
+					selectedPlayerConfigOption = PlayerConfigMenuOptions.NAME; // Reset focus to top for next player
 				} else {
 					startNewGame();
 					currentState = GameState.PLAYING;
@@ -1119,14 +1098,14 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			char c = e.getKeyChar();
 			
 			// Edit Player Name
-			if (selectedSetupOption == 0) {
+			if (selectedPlayerConfigOption == PlayerConfigMenuOptions.NAME) {
 	            if (c != KeyEvent.CHAR_UNDEFINED && c != '\n' && c != '\b' 
 	                    && setupPlayerNames[currentPlayerSetupIndex].length() < 15) {
 	                setupPlayerNames[currentPlayerSetupIndex] += c;
 	            }
 	        } 
 	        // Edit Player Money
-	        else if (selectedSetupOption == 1) {
+	        else if (selectedPlayerConfigOption == PlayerConfigMenuOptions.MONEY) {
 	            if (Character.isDigit(c)) {
 	                int digit = Character.getNumericValue(c);
 	                long currentMoney = setupPlayerMoney[currentPlayerSetupIndex];
