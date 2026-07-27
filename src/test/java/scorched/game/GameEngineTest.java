@@ -31,7 +31,7 @@ class GameEngineTest {
     @BeforeEach
     void setUp() {
         // Safe configuration. Asset loading errors caught internally inside GameEngine constructor.
-    	mockedSoundEngine = mockStatic(SoundEngine.class);
+        mockedSoundEngine = mockStatic(SoundEngine.class);
         gameEngine = new GameEngine(800, 600);
     }
     
@@ -193,22 +193,23 @@ class GameEngineTest {
         KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(enterEvent);
 
-        Field namesField = GameEngine.class.getDeclaredField("setupPlayerNames");
-        namesField.setAccessible(true);
+        Field playersField = GameEngine.class.getDeclaredField("players");
+        playersField.setAccessible(true);
 
         // Type 'A'
         KeyEvent typeA = new KeyEvent(gameEngine, KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, 'A');
         gameEngine.keyTyped(typeA);
 
-        String[] names = (String[]) namesField.get(gameEngine);
-        assertEquals("Player 1A", names[0]);
+        @SuppressWarnings("unchecked")
+        List<Player> players = (List<Player>) playersField.get(gameEngine);
+        assertEquals("Player 1A", players.get(0).getPlayerName());
 
         // Press Backspace
         KeyEvent backspace = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_BACK_SPACE, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(backspace);
 
-        names = (String[]) namesField.get(gameEngine);
-        assertEquals("Player 1", names[0]);
+        players = (List<Player>) playersField.get(gameEngine);
+        assertEquals("Player 1", players.get(0).getPlayerName());
     }
 
     @Test
@@ -298,23 +299,23 @@ class GameEngineTest {
     @Test
     @DisplayName("Switch Turn loops pass cleanly above incapacitated players and wrap cycle lists securely")
     void testSwitchTurnLogic() throws Exception {
-        Field playersField = GameEngine.class.getDeclaredField("players");
-        playersField.setAccessible(true);
+        Field tanksField = GameEngine.class.getDeclaredField("tanks");
+        tanksField.setAccessible(true);
 
-        List<Tank> mockPlayers = new ArrayList<>();
-        Tank p1 = mock(Tank.class);
-        Tank p2 = mock(Tank.class);
-        Tank p3 = mock(Tank.class);
+        List<Tank> mockTanks = new ArrayList<>();
+        Tank t1 = mock(Tank.class);
+        Tank t2 = mock(Tank.class);
+        Tank t3 = mock(Tank.class);
 
-        // Condition Profile layout details: P1 Active, P2 Inoperable/Dead, P3 Active
-        when(p1.isAlive()).thenReturn(true);
-        when(p2.isAlive()).thenReturn(false);
-        when(p3.isAlive()).thenReturn(true);
+        // Condition Profile layout details: T1 Active, T2 Inoperable/Dead, T3 Active
+        when(t1.isAlive()).thenReturn(true);
+        when(t2.isAlive()).thenReturn(false);
+        when(t3.isAlive()).thenReturn(true);
 
-        mockPlayers.add(p1);
-        mockPlayers.add(p2);
-        mockPlayers.add(p3);
-        playersField.set(gameEngine, mockPlayers);
+        mockTanks.add(t1);
+        mockTanks.add(t2);
+        mockTanks.add(t3);
+        tanksField.set(gameEngine, mockTanks);
 
         Field activeIndexField = GameEngine.class.getDeclaredField("activePlayerIndex");
         activeIndexField.setAccessible(true);
@@ -328,7 +329,7 @@ class GameEngineTest {
         switchTurnMethod.invoke(gameEngine);
 
         // Confirm lifecycle pointer hops over index 1 straight onto index 2 location
-        assertEquals(2, activeIndexField.get(gameEngine), "Turn should skip dead Player 2 and land directly on Player 3");
+        assertEquals(2, activeIndexField.get(gameEngine), "Turn should skip dead Tank 2 and land directly on Tank 3");
     }
 
     @Test
@@ -395,25 +396,26 @@ class GameEngineTest {
         KeyEvent enterEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_ENTER, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(enterEvent); // Navigate to PLAYER_CONFIG
 
-        Field difficultyField = GameEngine.class.getDeclaredField("setupPlayerDifficulty");
-        difficultyField.setAccessible(true);
-        PlayerDifficulty[] initialDiffs = (PlayerDifficulty[]) difficultyField.get(gameEngine);
+        Field playersField = GameEngine.class.getDeclaredField("players");
+        playersField.setAccessible(true);
+        
+        @SuppressWarnings("unchecked")
+        List<Player> players = (List<Player>) playersField.get(gameEngine);
         
         // Player 2 defaults to AI and PlayerDifficulty.MEDIUM
-        assertEquals(PlayerDifficulty.MEDIUM, initialDiffs[1]);
+        assertEquals(PlayerDifficulty.MEDIUM, players.get(1).getPlayerDifficulty());
 
-        // Move to Player 2 config
+        // Move setup focus to Player 2 config
         gameEngine.keyPressed(enterEvent); 
 
         Field configOptField = GameEngine.class.getDeclaredField("selectedPlayerConfigOption");
         configOptField.setAccessible(true);
         configOptField.set(gameEngine, PlayerConfigMenuOptions.DIFFICULTY);
 
-        // Press RIGHT arrow -> should cycle to HARD (or next difficulty)
+        // Press RIGHT arrow -> should cycle difficulty
         KeyEvent rightEvent = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_RIGHT, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(rightEvent);
 
-        PlayerDifficulty[] updatedDiffs = (PlayerDifficulty[]) difficultyField.get(gameEngine);
-        assertEquals(PlayerDifficulty.MEDIUM.next(), updatedDiffs[1]);
+        assertEquals(PlayerDifficulty.MEDIUM.next(), players.get(1).getPlayerDifficulty());
     }
 }

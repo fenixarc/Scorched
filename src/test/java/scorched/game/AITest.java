@@ -35,6 +35,7 @@ class AITest {
         when(myTank.getPlayerIndex()).thenReturn(0);
         when(myTank.getX()).thenReturn(100);
         when(myTank.getY()).thenReturn(200);
+        when(myTank.getName()).thenReturn("AI Tank");
         when(myTank.getInventory()).thenReturn(inventory);
         
         // Setup inventory defaults to prevent NullPointerExceptions during weapon selection
@@ -61,20 +62,28 @@ class AITest {
         when(opponent1.isAlive()).thenReturn(true);
         when(opponent1.getX()).thenReturn(200);
         when(opponent1.getY()).thenReturn(200);
+        when(opponent1.getName()).thenReturn("Opponent 1");
 
         Tank opponent2 = mock(Tank.class);
         when(opponent2.getPlayerIndex()).thenReturn(2);
         when(opponent2.isAlive()).thenReturn(true);
         when(opponent2.getX()).thenReturn(300);
         when(opponent2.getY()).thenReturn(200);
+        when(opponent2.getName()).thenReturn("Opponent 2");
 
         List<Tank> activePlayers = Arrays.asList(myTank, opponent1, opponent2);
 
-        // Run multiple times to verify it filters out 'this' tank and selects an opponent safely
-        for (int i = 0; i < 10; i++) {
-            ai.takeTurn(GameState.PLAYING, terrain, activePlayers);
-            verify(myTank, atLeastOnce()).setBarrelAngle(anyInt());
-            verify(myTank, atLeastOnce()).setPower(anyDouble());
+        try (MockedStatic<ProjectileSimulator> mockedSimulator = mockStatic(ProjectileSimulator.class)) {
+            mockedSimulator.when(() -> ProjectileSimulator.checkTrajectory(
+                    anyDouble(), anyDouble(), anyDouble(), anyDouble(), any(), any()
+            )).thenReturn(true);
+
+            // Run multiple times to verify it filters out 'this' tank and selects an opponent safely
+            for (int i = 0; i < 10; i++) {
+                ai.takeTurn(GameState.PLAYING, terrain, activePlayers);
+                verify(myTank, atLeastOnce()).setBarrelAngle(anyInt());
+                verify(myTank, atLeastOnce()).setPower(anyDouble());
+            }
         }
     }
 
@@ -89,19 +98,27 @@ class AITest {
         when(farOpponent.isAlive()).thenReturn(true);
         when(farOpponent.getX()).thenReturn(400); // Distance = 300
         when(farOpponent.getY()).thenReturn(200);
+        when(farOpponent.getName()).thenReturn("Far Opponent");
 
         Tank closeOpponent = mock(Tank.class);
         when(closeOpponent.getPlayerIndex()).thenReturn(2);
         when(closeOpponent.isAlive()).thenReturn(true);
         when(closeOpponent.getX()).thenReturn(150); // Distance = 50
         when(closeOpponent.getY()).thenReturn(200);
+        when(closeOpponent.getName()).thenReturn("Close Opponent");
 
         List<Tank> activePlayers = Arrays.asList(myTank, farOpponent, closeOpponent);
 
-        ai.takeTurn(GameState.PLAYING, terrain, activePlayers);
+        try (MockedStatic<ProjectileSimulator> mockedSimulator = mockStatic(ProjectileSimulator.class)) {
+            mockedSimulator.when(() -> ProjectileSimulator.checkTrajectory(
+                    anyDouble(), anyDouble(), anyDouble(), anyDouble(), any(), any()
+            )).thenReturn(true);
 
-        // Verify that the AI actively queried the closest opponent coordinates to complete tracking
-        verify(closeOpponent, atLeastOnce()).getX();
+            ai.takeTurn(GameState.PLAYING, terrain, activePlayers);
+
+            // Verify that the AI actively queried the closest opponent coordinates to complete tracking
+            verify(closeOpponent, atLeastOnce()).getX();
+        }
     }
 
     @Test
@@ -127,6 +144,7 @@ class AITest {
         when(target.isAlive()).thenReturn(true);
         when(target.getX()).thenReturn(200); 
         when(target.getY()).thenReturn(200);
+        when(target.getName()).thenReturn("Target");
 
         List<Tank> activePlayers = Arrays.asList(myTank, target);
 
@@ -171,13 +189,20 @@ class AITest {
         when(target.isAlive()).thenReturn(true);
         when(target.getX()).thenReturn(300);
         when(target.getY()).thenReturn(200);
+        when(target.getName()).thenReturn("Target");
 
         List<Tank> activePlayers = Arrays.asList(myTank, target);
 
-        // Fire 5 times to increment shotsFiredAtTarget, checking that logic runs smoothly
-        // and adjustmentSpread = Math.max(0.1, 1.0 - (shotsFiredAtTarget * 0.3)) is utilized.
-        for (int i = 0; i < 5; i++) {
-            assertDoesNotThrow(() -> ai.takeTurn(GameState.PLAYING, terrain, activePlayers));
+        try (MockedStatic<ProjectileSimulator> mockedSimulator = mockStatic(ProjectileSimulator.class)) {
+            mockedSimulator.when(() -> ProjectileSimulator.checkTrajectory(
+                    anyDouble(), anyDouble(), anyDouble(), anyDouble(), any(), any()
+            )).thenReturn(true);
+
+            // Fire 5 times to increment shotsFiredAtTarget, checking that logic runs smoothly
+            // and adjustmentSpread = Math.max(0.1, 1.0 - (shotsFiredAtTarget * 0.3)) is utilized.
+            for (int i = 0; i < 5; i++) {
+                assertDoesNotThrow(() -> ai.takeTurn(GameState.PLAYING, terrain, activePlayers));
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import scorched.enums.PlayerDifficulty;
 import scorched.sound.SoundEngine;
 
 import java.awt.Color;
@@ -15,6 +16,8 @@ class TankTest {
 
     private Terrain mockTerrain;
     private DamageListener mockDamageListener;
+    private Player mockPlayer;
+    private Inventory mockInventory;
     private final Color tankColor = Color.GREEN;
     private final int playerIndex = 1;
     private final String tankName = "TestTank";
@@ -24,16 +27,27 @@ class TankTest {
     void setUp() {
         mockTerrain = mock(Terrain.class);
         mockDamageListener = mock(DamageListener.class);
-        
+        mockPlayer = mock(Player.class);
+        mockInventory = mock(Inventory.class);
+
         // Default terrain behavior: flat ground at Y = 200
         when(mockTerrain.getHeightAt(anyInt())).thenReturn(200);
+
+        // Default player behavior
+        when(mockPlayer.getPlayerName()).thenReturn(tankName);
+        when(mockPlayer.getInventory()).thenReturn(mockInventory);
+        when(mockPlayer.getMoney()).thenReturn(startingMoney);
     }
 
     @Test
     void testConstructorSnapsToTerrainAndInitializesAI() {
         // Tank height is 14. Terrain is 200. Expected Y = 200 - 14 = 186
-        // Passing aiLevel = 1 to verify AI initialization and 500 starting money
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 1, startingMoney);
+        when(mockPlayer.isAI()).thenReturn(true);
+        PlayerDifficulty mockDifficulty = mock(PlayerDifficulty.class);
+        when(mockDifficulty.getLevel()).thenReturn(1);
+        when(mockPlayer.getPlayerDifficulty()).thenReturn(mockDifficulty);
+
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
 
         assertEquals(tankName, tank.getName());
         assertEquals(100, tank.getX());
@@ -50,14 +64,16 @@ class TankTest {
 
     @Test
     void testConstructorWithoutAI() {
-        // Passing aiLevel = 0 should leave AI as null
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
+        when(mockPlayer.isAI()).thenReturn(false);
+
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
         assertNull(tank.getAI());
     }
 
     @Test
     void testChangeAngleClamping() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
+        when(mockPlayer.isAI()).thenReturn(false);
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
 
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
             // Test normal adjustments
@@ -77,7 +93,8 @@ class TankTest {
 
     @Test
     void testSetBarrelAngle() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
+        when(mockPlayer.isAI()).thenReturn(false);
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
 
         tank.setBarrelAngle(120);
         assertEquals(120, tank.getBarrelAngle());
@@ -91,7 +108,8 @@ class TankTest {
 
     @Test
     void testChangePowerClamping() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
+        when(mockPlayer.isAI()).thenReturn(false);
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
         assertEquals(10.0, tank.getPower());
 
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
@@ -112,7 +130,8 @@ class TankTest {
 
     @Test
     void testSetPower() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
+        when(mockPlayer.isAI()).thenReturn(false);
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
 
         tank.setPower(18.5);
         assertEquals(18.5, tank.getPower());
@@ -126,8 +145,9 @@ class TankTest {
 
     @Test
     void testCheckHit() {
+        when(mockPlayer.isAI()).thenReturn(false);
         // Tank is at X=100, Y=186. Width=30 (X bounds: 85 to 115). Height=14 (Y bounds: 186 to 200)
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
 
         // Center hit
         assertTrue(tank.checkHit(100, 190));
@@ -144,7 +164,8 @@ class TankTest {
 
     @Test
     void testApplyGravity_WhileFallingAndLanding() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
+        when(mockPlayer.isAI()).thenReturn(false);
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
         tank.setDamageListener(mockDamageListener);
 
         // Suddenly change terrain height drastically downward so the tank is in mid-air
@@ -180,7 +201,8 @@ class TankTest {
 
     @Test
     void testTakeDamageAndDeath() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
+        when(mockPlayer.isAI()).thenReturn(false);
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
         tank.setDamageListener(mockDamageListener);
 
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
@@ -209,7 +231,8 @@ class TankTest {
 
     @Test
     void testReset() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, startingMoney);
+        when(mockPlayer.isAI()).thenReturn(false);
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
         
         try (MockedStatic<SoundEngine> mockedSoundEngine = mockStatic(SoundEngine.class)) {
             tank.takeDamage(100);
@@ -223,7 +246,10 @@ class TankTest {
 
     @Test
     void testMoneyOperations() {
-        Tank tank = new Tank(tankName, 100, mockTerrain, tankColor, 90, playerIndex, 0, 200);
+        when(mockPlayer.isAI()).thenReturn(false);
+        when(mockPlayer.getMoney()).thenReturn(200);
+
+        Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
         assertEquals(200, tank.getMoney());
 
         tank.addMoney(150);
