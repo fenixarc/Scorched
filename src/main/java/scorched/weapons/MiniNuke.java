@@ -7,7 +7,7 @@ package scorched.weapons;
 
 public class MiniNuke extends AmmoType {
 	
-	private static String NAME = "Mini Nuke";
+	private static String NAME = "MINI NUKE";
 	private static int RADIUS = 4;
 	private static int EXPLOSION_RADIUS = 100;
 	private static int DAMAGE = 100;

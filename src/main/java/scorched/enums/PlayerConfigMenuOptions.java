@@ -2,7 +2,6 @@ package scorched.enums;
 
 public enum PlayerConfigMenuOptions {
 	NAME("NAME"),
-    MONEY("MONEY"),
     CONTROL("CONTROL"),
     DIFFICULTY("DIFFICULTY");
 

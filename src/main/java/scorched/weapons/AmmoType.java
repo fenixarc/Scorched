@@ -23,6 +23,19 @@ public class AmmoType {
         this.description = description;
     }
     
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        AmmoType other = (AmmoType) obj;
+        return this.getName() != null && this.getName().equalsIgnoreCase(other.getName());
+    }
+
+    @Override
+    public int hashCode() {
+        return getName() != null ? getName().toLowerCase().hashCode() : 0;
+    }
+    
     // Getters to access the properties
     public int getRadius() {
         return radius;

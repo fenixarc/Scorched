@@ -203,6 +203,8 @@ public class AI {
         System.out.println("AI: " + this.myTank.getName() + " targeting: " + target.getName() + " firing: " + ammoType.getName() 
         		+ " perfectPower: " + (float) perfectPower + " finalPower: " + (float) finalPower 
         		+ " defaultAngle: " + defaultAngle + " finalAngle: " + finalAngle);
+        
+        this.myTank.getInventory().consumeAmmo(ammoType);
     }
     
     private double calculatePerfectPower(double defaultAngle, double targetX, double targetY, double tipX, double tipY) {

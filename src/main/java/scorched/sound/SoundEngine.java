@@ -748,4 +748,41 @@ public class SoundEngine {
 		}
 		playGeneratedSound(buffer);
 	}
+	
+	/**
+	 * Synthesizes a harsh, two-tone descending 8-bit buzz mimicking an error or invalid move.
+	 * Drops from a dissonant mid-register tone down to a low buzz with a sharp decay.
+	 */
+	public static void playErrorSound() {
+		int durationMs = 160; // Short and snappy error feedback
+		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		byte[] buffer = new byte[numSamples];
+		Random rand = new Random();
+
+		for (int i = 0; i < numSamples; i++) {
+			double progress = (double) i / numSamples;
+			
+			// Two distinct descending tones: starts at a dissonant 300Hz, then drops to 150Hz
+			double frequency = (progress < 0.4) ? 300.0 : 150.0;
+			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+
+			// Channel 1: Square wave for retro chiptune buzz
+			double squareWave = (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
+			
+			// Channel 2: Sawtooth wave for additional abrasive texture
+			double sawWave = (Math.abs((angle % (2.0 * Math.PI)) - Math.PI) / Math.PI) * 2.0 - 1.0;
+
+			// Channel 3: Subtle noise bite on initial strike for punchiness
+			double noiseBite = (rand.nextDouble() * 2.0 - 1.0) * (1.0 - progress);
+
+			double mixedSignal = (squareWave * 0.5) + (sawWave * 0.3) + (noiseBite * 0.2);
+
+			// Sharp exponential decay envelope so it cuts off cleanly
+			double volumeEnvelope = Math.pow(1.0 - progress, 2);
+			
+			// Scaled amplitude (around 50) to make it clear without clipping or overwhelming other UI audio
+			buffer[i] = (byte) (mixedSignal * 50.0 * volumeEnvelope);
+		}
+		playGeneratedSound(buffer);
+	}
 }

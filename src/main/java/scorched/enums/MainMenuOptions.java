@@ -2,7 +2,8 @@ package scorched.enums;
 
 public enum MainMenuOptions {
 	PLAYERS("PLAYERS: "),
-    HILLS("HILLS: ");
+    HILLS("HILLS: "),
+    MONEY("MONEY");
 
     private final String label;
 

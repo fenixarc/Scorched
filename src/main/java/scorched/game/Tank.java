@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 
 import scorched.sound.SoundEngine;
 import scorched.weapons.AmmoType;
+import scorched.weapons.HERound;
 
 public class Tank {
 	
@@ -36,17 +37,18 @@ public class Tank {
 	private int barrelLength = 20;
 	private double power = DEFAULT_POWER;
 
-	public Tank(String name, int startX, Terrain terrain, Color color, int startingAngle, int playerIndex, int aiLevel, int money) {
-		this.name = name;
+	public Tank(Player player, int startX, Terrain terrain, Color color, int startingAngle, int playerIndex) {
+		this.name = player.getPlayerName();
 		this.x = startX;
 		this.color = color;
 		this.barrelAngle = startingAngle;
 		this.playerIndex = playerIndex;
-		this.inventory = new Inventory();
-		if (aiLevel > 0) {
-			ai = new AI(aiLevel, 0, this);
+		this.inventory = player.getInventory();
+		if (player.isAI()) {
+			ai = new AI(player.getPlayerDifficulty().getLevel(), 0, this);
 		}
-		this.money = money;
+		this.money = player.getMoney();
+		currentAmmoType = new HERound();
 		
 		// Snap the tank's bottom directly onto the ground surface
 		this.y = terrain.getHeightAt(this.x) - this.height;
