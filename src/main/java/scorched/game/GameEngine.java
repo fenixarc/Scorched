@@ -8,11 +8,11 @@ import scorched.enums.MainMenuOptions;
 import scorched.enums.PauseMenuOptions;
 import scorched.enums.PlayerConfigMenuOptions;
 import scorched.enums.PlayerDifficulty;
+import scorched.sound.MusicPlayer;
 import scorched.sound.MusicTrack;
 import scorched.sound.MusicTracksList;
 import scorched.sound.SoundEngine;
 import scorched.weapons.AmmoType;
-import scorched.weapons.HERound;
 import scorched.weapons.WeaponRegistry;
 
 import java.awt.Color;
@@ -139,7 +139,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		}
 
 		// Play startup music
-		SoundEngine.startMusic(MusicTracksList.MENU_THEME);
+		MusicPlayer.startMusic(MusicTracksList.MENU_THEME);
 	}
 
 	/**
@@ -175,8 +175,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 		// Select and store the music track
 		currentBattleTrack = battleTracks[rand.nextInt(battleTracks.length)];
-		SoundEngine.stopMusic();
-		SoundEngine.startMusic(currentBattleTrack);
+		MusicPlayer.stopMusic();
+		MusicPlayer.startMusic(currentBattleTrack);
 
 		// Initialize tanks
 		tanks = new ArrayList<>();
@@ -385,8 +385,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 							}
 
 							if (survivorsCount <= 1) {
-								SoundEngine.stopMusic();
-								SoundEngine.startMusic(MusicTracksList.VICTORY_THEME);
+								MusicPlayer.stopMusic();
+								MusicPlayer.startMusic(MusicTracksList.VICTORY_THEME);
 								currentState = GameState.GAME_OVER;
 							} else {
 								switchTurn();
@@ -871,10 +871,10 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		
 		// Map our internal properties out to text declarations
 		String[] options = {
-			"MUSIC VOLUME: " + SoundEngine.musicVolume,
+			"MUSIC VOLUME: " + MusicPlayer.musicVolume,
 			"SOUND VOLUME: " + SoundEngine.soundVolume,
-			"MUTE MUSIC: [ " + (SoundEngine.muteMusic ? "X" : " ") + " ]",
-			"MUTE SOUND: [ " + (SoundEngine.muteSound ? "X" : " ") + " ]",
+			"MUTE MUSIC: [ " + (MusicPlayer.muteMusic.get() ? "X" : " ") + " ]",
+			"MUTE SOUND: [ " + (SoundEngine.muteSound.get() ? "X" : " ") + " ]",
 			"BACK"
 		};
 
@@ -1276,9 +1276,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 					currentState = GameState.SETTINGS;
 				} else if (selectedPauseOption == PauseMenuOptions.EXIT_BATTLE) {
 					SoundEngine.playMenuConfirmSound();
-					SoundEngine.stopMusic();
+					MusicPlayer.stopMusic();
 					currentState = GameState.MAIN_MENU;
-					SoundEngine.startMusic(MusicTracksList.MENU_THEME);
+					MusicPlayer.startMusic(MusicTracksList.MENU_THEME);
 				}
 			}
 		}
@@ -1315,20 +1315,20 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			// RIGHT Key
 			else if (keyCode == KeyEvent.VK_RIGHT) {
 				SoundEngine.playMenuSelectSound();
-				if (selectedSettingsOption == 0 && SoundEngine.musicVolume < 10) {
-					SoundEngine.musicVolume++;
-				} else if (selectedSettingsOption == 1 && SoundEngine.soundVolume < 10) {
-					SoundEngine.soundVolume++;
+				if (selectedSettingsOption == 0 && MusicPlayer.musicVolume.get() < 10) {
+					MusicPlayer.musicVolume.set(MusicPlayer.musicVolume.get() + 1);
+				} else if (selectedSettingsOption == 1 && SoundEngine.soundVolume.get() < 10) {
+					SoundEngine.soundVolume.set(SoundEngine.soundVolume.get() + 1);
 				}
 			}
 
 			// LEFT Key
 			else if (keyCode == KeyEvent.VK_LEFT) {
 				SoundEngine.playMenuSelectSound();
-				if (selectedSettingsOption == 0 && SoundEngine.musicVolume > 1) {
-					SoundEngine.musicVolume--;
-				} else if (selectedSettingsOption == 1 && SoundEngine.soundVolume > 1) {
-					SoundEngine.soundVolume--;
+				if (selectedSettingsOption == 0 && MusicPlayer.musicVolume.get() > 1) {
+					MusicPlayer.musicVolume.set(MusicPlayer.musicVolume.get() - 1);
+				} else if (selectedSettingsOption == 1 && SoundEngine.soundVolume.get() > 1) {
+					SoundEngine.soundVolume.set(SoundEngine.soundVolume.get() - 1);
 				}
 			}
 
@@ -1336,9 +1336,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			else if (keyCode == KeyEvent.VK_ENTER) {
 				SoundEngine.playMenuConfirmSound();
 				if (selectedSettingsOption == 2) {
-					SoundEngine.muteMusic = !SoundEngine.muteMusic;
+					MusicPlayer.muteMusic.set(!MusicPlayer.muteMusic.get());
 				} else if (selectedSettingsOption == 3) {
-					SoundEngine.muteSound = !SoundEngine.muteSound;
+					SoundEngine.muteSound.set(!SoundEngine.muteSound.get());
 				} else if (selectedSettingsOption == 4) {
 					currentState = GameState.PAUSED;
 				}
@@ -1352,9 +1352,9 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 			// ESCAPE key
 			if (keyCode == KeyEvent.VK_ESCAPE) {
-				SoundEngine.stopMusic();
+				MusicPlayer.stopMusic();
 				currentState = GameState.MAIN_MENU;
-				SoundEngine.startMusic(MusicTracksList.MENU_THEME);
+				MusicPlayer.startMusic(MusicTracksList.MENU_THEME);
 			}
 		}
 

@@ -1,48 +1,44 @@
 package scorched.sound;
-import javax.sound.sampled.AudioFormat;
+
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.SourceDataLine;
 
 import scorched.game.Tank;
 
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class SoundEngine {
-
-	private static final int SAMPLE_RATE = 16000; // 16kHz audio quality
 	
 	// Audio override variables controlled by the settings menu
-	public static int musicVolume = 7;     // Scale from 1 to 10
-	public static int soundVolume = 7;     // Scale from 1 to 10
-	public static boolean muteMusic = false;
-	public static boolean muteSound = false;
+	public static final AtomicInteger soundVolume = new AtomicInteger(7);     // Scale from 1 to 10
+	public static final AtomicBoolean muteSound = new AtomicBoolean(false);
 
-	// Volatile flag allows different threads to safely communicate when to stop the
-	// music
-	private static volatile boolean playMusic = false;
-	private static Thread musicThread;
+	// Thread management
+    private static final ExecutorService sfxExecutor = Executors.newFixedThreadPool(4);
 
 	/**
 	 * Plays a sound effect asynchronously so it doesn't freeze the main game loop
 	 * thread.
 	 */
 	private static void playGeneratedSound(byte[] buffer) {
-		if (muteSound) return; // Sound override check
-		new Thread(() -> {
+		if (muteSound.get()) return; // Sound override check
+		sfxExecutor.submit(() -> {
 			try {
 				// 16,000 samples per second, 8-bit mono
-				AudioFormat format = new AudioFormat(SAMPLE_RATE, 8, 1, true, false);
-				SourceDataLine line = AudioSystem.getSourceDataLine(format);
+				SourceDataLine line = AudioSystem.getSourceDataLine(AudioUtils.AUDIO_FORMAT);
 
 				// Force Java to dump the sound to speakers immediately
-				int tinyBufferSize = 1024;
-				line.open(format, tinyBufferSize);
+				line.open(AudioUtils.AUDIO_FORMAT, AudioUtils.BUFFER_SIZE);
 
 				line.start();
 
 				// Apply volume scaling override to the buffer
 				byte[] scaledBuffer = new byte[buffer.length];
-				double volumeScale = soundVolume / 10.0;
+				double volumeScale = soundVolume.get() / 10.0;
 				for (int i = 0; i < buffer.length; i++) {
 					scaledBuffer[i] = (byte) (buffer[i] * volumeScale);
 				}
@@ -53,190 +49,7 @@ public class SoundEngine {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		}).start();
-	}
-
-	/**
-	 * Accepts ANY Track object configuration and streams it through the synth
-	 * engine dynamically. Timelines are driven by the bass line loop length,
-	 * and the synth layer supports look-ahead envelope bridging for long, sustained notes.
-	 */
-	public static void startMusic(MusicTrack track) {
-		// Check if music needs to stop
-		if (playMusic) {
-			stopMusic();
-		}
-
-		// If already playing music, ignore
-		if (playMusic)
-			return;
-
-		playMusic = true;
-
-		System.out.println("Now Playing: " + track.getName());
-
-		musicThread = new Thread(() -> {
-			// Extract patterns from track
-			double[] bassPattern = track.getBassPattern();
-			double[] melodyPattern = track.getMelodyPattern();
-			int[] drumsPattern = track.getDrumsPattern();
-			double[] synthPattern = track.getSynthPattern();
-
-			int samplesPerStep = (SAMPLE_RATE * track.getNoteDurationMs()) / 1000;
-			Random rand = new Random();
-
-			try {
-				AudioFormat format = new AudioFormat(SAMPLE_RATE, 8, 1, true, false);
-				SourceDataLine line = AudioSystem.getSourceDataLine(format);
-				line.open(format, 1024);
-				line.start();
-
-				// Universal master step counter (64-bit to prevent long playback overflow)
-				long totalSteps = 0; 
-
-				// Dynamic Master Clock: Defined by the actual size of the bass line array.
-				// Fallback to 1 to prevent division-by-zero crashes if a track has no bass.
-				final int STEPS_PER_LOOP = (bassPattern != null && bassPattern.length > 0) ? bassPattern.length : 1;
-
-				while (playMusic) {
-					// --- 1. CALCULATE CURRENT LOOP TIMELINE ---
-					// Tracks exactly how many times the bass line has fully completed
-					long currentGlobalLoop = totalSteps / STEPS_PER_LOOP;
-
-					// --- 2. EVALUATE LAYER ACTIVATION AGAINST BASS CLOCK ---
-					boolean bassActive = (bassPattern != null && bassPattern.length > 0) 
-							&& (currentGlobalLoop >= track.getLoopsBeforeBass());
-
-					boolean melodyActive = (melodyPattern != null && melodyPattern.length > 0) 
-							&& (currentGlobalLoop >= track.getLoopsBeforeMelody());
-
-					boolean drumsActive = (drumsPattern != null && drumsPattern.length > 0) 
-							&& (currentGlobalLoop >= track.getLoopsBeforeDrums());
-
-					boolean synthActive = (synthPattern != null && synthPattern.length > 0) 
-							&& (currentGlobalLoop >= track.getLoopsBeforeSynth());
-					
-					// Song debugging
-//					System.out.println("bassActive = " + bassActive
-//							+ " melodyActive = " + melodyActive
-//							+ " drumsActive = " + drumsActive
-//							+ " synthActive = " + synthActive);
-
-					// --- 3. FETCH PATTERN INDICES AND LOOK-AHEAD LOGIC ---
-					int bassIndex   = (bassActive)   ? (int)(totalSteps % bassPattern.length)   : 0;
-					int melodyIndex = (melodyActive) ? (int)(totalSteps % melodyPattern.length) : 0;
-					int drumIndex   = (drumsActive)  ? (int)(totalSteps % drumsPattern.length)  : 0;
-					
-					int synthIndex  = (synthActive)  ? (int)(totalSteps % synthPattern.length)  : 0;
-					
-					// Look ahead exactly 1 step into the synth array to check for tied notes
-					int nextSynthIndex = (synthActive) ? (int)((totalSteps + 1) % synthPattern.length) : 0;
-
-					double bassFreq   = (bassActive)   ? bassPattern[bassIndex]   : 0;
-					double melodyFreq = (melodyActive) ? melodyPattern[melodyIndex] : 0;
-					int drumHit       = (drumsActive)  ? drumsPattern[drumIndex]  : 0;
-					
-					double synthFreq     = (synthActive) ? synthPattern[synthIndex] : 0;
-					double nextSynthFreq = (synthActive) ? synthPattern[nextSynthIndex] : 0;
-
-					// Determine if the current synth note continues seamlessly into the next step
-					boolean synthNoteIsTied = (synthFreq > 0.0 && synthFreq == nextSynthFreq);
-
-					byte[] buffer = new byte[samplesPerStep];
-
-					// --- 4. AUDIO SIGNAL GENERATION ---
-					for (int i = 0; i < samplesPerStep; i++) {
-						double totalSignal = 0.0;
-						double stepProgress = (double) i / samplesPerStep;
-						double volumeEnvelope = 1.0 - stepProgress;
-
-						// CHANNEL 1: Bassline (Sine Wave)
-						if (bassActive && bassFreq > 0.0) {
-							double bassAngle = 2.0 * Math.PI * bassFreq * i / SAMPLE_RATE;
-							totalSignal += Math.sin(bassAngle) * track.getBassVolumeModifier() * volumeEnvelope;
-						}
-
-						// CHANNEL 2: Melody Lead (Square Wave)
-						if (melodyActive && melodyFreq > 0.0) {
-							double melodyAngle = 2.0 * Math.PI * melodyFreq * i / SAMPLE_RATE;
-							double melodyWave = (Math.sin(melodyAngle) >= 0.0) ? 1.0 : -1.0;
-							totalSignal += melodyWave * 12 * Math.pow(1.0 - stepProgress, 2);
-						}
-
-						// CHANNEL 3: Dynamic Drums Layer (White Noise Burst)
-						if (drumsActive && drumHit == 1) {
-							double whiteNoise = (rand.nextDouble() * 2.0) - 1.0;
-							double drumEnvelope = Math.pow(1.0 - stepProgress, 5);
-							totalSignal += whiteNoise * 20 * drumEnvelope;
-						}
-
-						// CHANNEL 4: Synth Pad (Triangle Wave with Bridged Envelope)
-						if (synthActive && synthFreq > 0.0) {
-							double synthAngle = 2.0 * Math.PI * synthFreq * i / SAMPLE_RATE;
-							double triangleWave = (2.0 / Math.PI) * Math.asin(Math.sin(synthAngle));
-							
-							double synthEnvelope;
-							if (synthNoteIsTied) {
-								// Keep volume near full capacity to bridge into the next step smoothly
-								synthEnvelope = 1.0 - (stepProgress * 0.15); 
-							} else {
-								// Final step of the note block: allow standard decay to finish cleanly
-								synthEnvelope = 1.0 - stepProgress;
-							}
-							
-							totalSignal += triangleWave * 15 * synthEnvelope;
-						}
-						
-						// Apply global music settings override
-						if (muteMusic) {
-							totalSignal = 0.0;
-						} else {
-							totalSignal *= (musicVolume / 10.0);
-						}
-
-
-						// Protect audio driver from overflow clipping bounds
-						if (totalSignal > 127)  totalSignal = 127;
-						if (totalSignal < -128) totalSignal = -128;
-
-						buffer[i] = (byte) totalSignal;
-					}
-
-					line.write(buffer, 0, buffer.length);
-					totalSteps++;
-				}
-
-				line.drain();
-				line.close();
-
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
 		});
-
-		musicThread.start();
-	}
-
-	/**
-	 * Instantly cuts off the music thread.
-	 */
-	public static void stopMusic() {
-		// If music isn't playing, ignore
-		if (!playMusic || musicThread == null)
-			return;
-
-		// Tell music to stop
-		playMusic = false;
-
-		try {
-			// Force new song to wait until old song stops
-			musicThread.join();
-			System.out.println("Stopping track.");
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-
-		musicThread = null;
 	}
 
 	/**
@@ -244,14 +57,14 @@ public class SoundEngine {
 	 */
 	public static void playFireSound() {
 		int durationMs = 150;
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 
 		for (int i = 0; i < numSamples; i++) {
 			double progress = (double) i / numSamples;
 			// Frequency slides rapidly down from 400Hz to 60Hz
 			double frequency = 400.0 * (1.0 - progress) + 60.0;
-			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
 			// Generate a square/sine blend wave and apply a volume decay envelope
 			double volumeEnvelope = 1.0 - progress;
@@ -265,7 +78,7 @@ public class SoundEngine {
 	 */
 	public static void playExplosionSound() {
 		int durationMs = 400;
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 		Random random = new Random();
 
@@ -295,7 +108,7 @@ public class SoundEngine {
 	public static void playFallDamageSound() {
 		// Extended to 800ms to let the massive sub-bass rumble decay naturally
 		int durationMs = 800;
-		int totalSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int totalSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[totalSamples];
 		java.util.Random rand = new java.util.Random();
 
@@ -304,7 +117,7 @@ public class SoundEngine {
 
 		for (int i = 0; i < totalSamples; i++) {
 			double progress = (double) i / totalSamples;
-			double msElapsed = (double) i / SAMPLE_RATE * 1000.0;
+			double msElapsed = (double) i / AudioUtils.SAMPLE_RATE * 1000.0;
 
 			double signal = 0.0;
 
@@ -330,7 +143,7 @@ public class SoundEngine {
 			// LAYER 3: The Expanding Fuel Cook-Off & Deep Sub-Bass Rumble (Whole Duration)
 			// The frequency rapidly drops over time: starts at 90Hz and plunges down to an ultra-low 25Hz rumble
 			double currentFreq = 90.0 * Math.pow(1.0 - progress, 3) + 25.0;
-			rumblePhase += (2.0 * Math.PI * currentFreq) / SAMPLE_RATE;
+			rumblePhase += (2.0 * Math.PI * currentFreq) / AudioUtils.SAMPLE_RATE;
 			
 			// Pure sine wave for that deep, chest-hitting sub-bass structure
 			double subBass = Math.sin(rumblePhase);
@@ -348,8 +161,7 @@ public class SoundEngine {
 			double highGainSignal = signal * 75.0;
 
 			// Hard clipping limits to protect the hardware buffer and create a gritty 8-bit distortion punch
-			if (highGainSignal > 127) highGainSignal = 127;
-			if (highGainSignal < -128) highGainSignal = -128;
+			highGainSignal = AudioUtils.clampToByte(highGainSignal);
 
 			buffer[i] = (byte) highGainSignal;
 		}
@@ -364,7 +176,7 @@ public class SoundEngine {
 	 */
 	public static void playMenuSelectSound() {
 		int durationMs = 80; // Short and snappy
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 
 		for (int i = 0; i < numSamples; i++) {
@@ -372,10 +184,10 @@ public class SoundEngine {
 			
 			// Frequency starts clear at 600Hz and leaps up to 1200Hz halfway through
 			double frequency = (progress < 0.4) ? 600.0 : 1200.0;
-			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
 			// Blending a square wave (for retro crunch) and sine wave (for clarity)
-			double squareWave = (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
+			double squareWave = squareWave(angle);
 			double sineWave = Math.sin(angle);
 			double mixedWave = (sineWave * 0.4) + (squareWave * 0.6);
 
@@ -394,7 +206,7 @@ public class SoundEngine {
 	 */
 	public static void playMenuConfirmSound() {
 		int durationMs = 180; // Slightly longer to allow the chord to resolve
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 
 		for (int i = 0; i < numSamples; i++) {
@@ -410,7 +222,7 @@ public class SoundEngine {
 				frequency = 783.99; // Note G5
 			}
 
-			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
 			// Duty cycle modulation for a classic "chiptune" pulse width flavor
 			// Alternates between a square wave and a lean pulse wave over time
@@ -432,7 +244,7 @@ public class SoundEngine {
 	 */
 	public static void playBarrelRotateSound() {
 		int durationMs = 45; // Extremely short for rapid, gapless repetition
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 		Random rand = new Random();
 
@@ -441,7 +253,7 @@ public class SoundEngine {
 			
 			// Low-frequency mechanical hum (90Hz) shifting down slightly
 			double frequency = 90.0 - (progress * 20.0);
-			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
 			// Generate a harsh triangle/sawtooth hybrid for gear tooth friction
 			double triangleWave = (Math.abs((angle % (2.0 * Math.PI)) - Math.PI) / Math.PI) * 2.0 - 1.0;
@@ -475,7 +287,7 @@ public class SoundEngine {
 		if (powerRatio > 1.0) powerRatio = 1.0;
 
 		int durationMs = 60; // Short window for smooth, continuous updates
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 		Random rand = new Random();
 
@@ -490,7 +302,7 @@ public class SoundEngine {
 			double currentFreq = startFreq * (1.0 - progress) + (endFreq * progress);
 			
 			// Track phase angle
-			double angle = 2.0 * Math.PI * currentFreq * i / SAMPLE_RATE;
+			double angle = 2.0 * Math.PI * currentFreq * i / AudioUtils.SAMPLE_RATE;
 
 			// Channel 1: Core energy wave (Sine wave for fundamental tone)
 			double coreSignal = Math.sin(angle);
@@ -524,13 +336,13 @@ public class SoundEngine {
 	 */
 	public static void playTankDeathSound() {
 		int totalDurationMs = 1000;
-		int numSamples = (SAMPLE_RATE * totalDurationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * totalDurationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 		Random random = new Random();
 
 		// Timing offsets in samples
-		int tier1Duration = (SAMPLE_RATE * 700) / 1000;  // First blast lasts 700ms
-		int tier2Start = (SAMPLE_RATE * 300) / 1000;     // Second blast starts at 300ms
+		int tier1Duration = (AudioUtils.SAMPLE_RATE * 700) / 1000;  // First blast lasts 700ms
+		int tier2Start = (AudioUtils.SAMPLE_RATE * 300) / 1000;     // Second blast starts at 300ms
 		int tier2Duration = numSamples - tier2Start;      // Second blast lasts remaining 700ms
 
 		// Pitch Randomization: Slightly alters the low-pass filter coefficients each run
@@ -572,8 +384,7 @@ public class SoundEngine {
 			double mixedSample = (tier1Sample * 0.5) + (tier2Sample * 1.1);
 
 			// Hard clamp to prevent digital distortion clipping past byte boundaries
-			if (mixedSample > 127) mixedSample = 127;
-			if (mixedSample < -128) mixedSample = -128;
+			mixedSample = AudioUtils.clampToByte(mixedSample);
 
 			buffer[i] = (byte) mixedSample;
 		}
@@ -587,7 +398,7 @@ public class SoundEngine {
 	 */
 	public static void playThunderSound() {
 		int durationMs = 1200; // 1.2 seconds of rolling thunder
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 		Random random = new Random();
 
@@ -595,7 +406,7 @@ public class SoundEngine {
 
 		for (int i = 0; i < numSamples; i++) {
 			double progress = (double) i / numSamples;
-			double msElapsed = (double) i / SAMPLE_RATE * 1000.0;
+			double msElapsed = (double) i / AudioUtils.SAMPLE_RATE * 1000.0;
 
 			// Generate raw white noise (-128 to 127)
 			double noise = random.nextInt(256) - 128;
@@ -618,8 +429,7 @@ public class SoundEngine {
 			// Combine layers and maximize saturation bounds
 			double finalSignal = (crackSignal + rumbleSignal) * 1.5;
 
-			if (finalSignal > 127)  finalSignal = 127;
-			if (finalSignal < -128) finalSignal = -128;
+			finalSignal = AudioUtils.clampToByte(finalSignal);
 
 			buffer[i] = (byte) finalSignal;
 		}
@@ -633,16 +443,16 @@ public class SoundEngine {
 	 */
 	public static void playMeteorStrikeSound() {
 		int durationMs = 1100; // 1.1 seconds of destructive entry and impact
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 		Random random = new Random();
 
 		// The entry streak phase lasts for the first 250 milliseconds
-		int entrySamples = (SAMPLE_RATE * 250) / 1000; 
+		int entrySamples = (AudioUtils.SAMPLE_RATE * 250) / 1000; 
 		double lowPassFilter = 0.0;
 
 		for (int i = 0; i < numSamples; i++) {
-			double msElapsed = (double) i / SAMPLE_RATE * 1000.0;
+			double msElapsed = (double) i / AudioUtils.SAMPLE_RATE * 1000.0;
 
 			double signal = 0.0;
 			double rawNoise = random.nextInt(256) - 128; // Raw white noise source
@@ -653,7 +463,7 @@ public class SoundEngine {
 				
 				// Rapidly descending whistling sweep (starts at 1800Hz, drops to 150Hz)
 				double entryFreq = 1800.0 * Math.pow(1.0 - entryProgress, 2) + 150.0;
-				double entryAngle = 2.0 * Math.PI * entryFreq * i / SAMPLE_RATE;
+				double entryAngle = 2.0 * Math.PI * entryFreq * i / AudioUtils.SAMPLE_RATE;
 				
 				// Triangle wave for a clean but piercing friction whistle tone
 				double whistleWave = (Math.abs((entryAngle % (2.0 * Math.PI)) - Math.PI) / Math.PI) * 2.0 - 1.0;
@@ -680,8 +490,7 @@ public class SoundEngine {
 			// Amplify to maximize the 8-bit clipping texture
 			double masterSignal = signal * 1.4;
 
-			if (masterSignal > 127)  masterSignal = 127;
-			if (masterSignal < -128) masterSignal = -128;
+			masterSignal = AudioUtils.clampToByte(masterSignal);
 
 			buffer[i] = (byte) masterSignal;
 		}
@@ -696,7 +505,7 @@ public class SoundEngine {
 	 */
 	public static void playPauseSound() {
 		int durationMs = 120; // Short and distinct
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 
 		for (int i = 0; i < numSamples; i++) {
@@ -704,10 +513,10 @@ public class SoundEngine {
 			
 			// Two distinct steps: starts bright at 900Hz, then drops to 700Hz halfway through
 			double frequency = (progress < 0.5) ? 900.0 : 700.0;
-			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
 			// Square wave for classic chiptune crunch
-			double squareWave = (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
+			double squareWave = squareWave(angle);
 
 			// Linear fade out for each half of the note structure to keep it punchy
 			double noteProgress = (progress < 0.5) ? (progress / 0.5) : ((progress - 0.5) / 0.5);
@@ -726,7 +535,7 @@ public class SoundEngine {
 	 */
 	public static void playUnpauseSound() {
 		int durationMs = 120; // Matches the pause duration exactly
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 
 		for (int i = 0; i < numSamples; i++) {
@@ -734,10 +543,10 @@ public class SoundEngine {
 			
 			// Reversed note order: starts low at 700Hz, then steps up to 900Hz halfway through
 			double frequency = (progress < 0.5) ? 700.0 : 900.0;
-			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
 			// Square wave for matching retro crunch
-			double squareWave = (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
+			double squareWave = squareWave(angle);
 
 			// Forward decay: Each note strikes cleanly and fades out down to 0.0
 			double noteProgress = (progress < 0.5) ? (progress / 0.5) : ((progress - 0.5) / 0.5);
@@ -755,7 +564,7 @@ public class SoundEngine {
 	 */
 	public static void playErrorSound() {
 		int durationMs = 160; // Short and snappy error feedback
-		int numSamples = (SAMPLE_RATE * durationMs) / 1000;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
 		byte[] buffer = new byte[numSamples];
 		Random rand = new Random();
 
@@ -764,10 +573,10 @@ public class SoundEngine {
 			
 			// Two distinct descending tones: starts at a dissonant 300Hz, then drops to 150Hz
 			double frequency = (progress < 0.4) ? 300.0 : 150.0;
-			double angle = 2.0 * Math.PI * frequency * i / SAMPLE_RATE;
+			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
 			// Channel 1: Square wave for retro chiptune buzz
-			double squareWave = (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
+			double squareWave = squareWave(angle);
 			
 			// Channel 2: Sawtooth wave for additional abrasive texture
 			double sawWave = (Math.abs((angle % (2.0 * Math.PI)) - Math.PI) / Math.PI) * 2.0 - 1.0;
@@ -785,4 +594,10 @@ public class SoundEngine {
 		}
 		playGeneratedSound(buffer);
 	}
+	
+	// Helper Methods
+	
+	public static double squareWave(double angle) {
+        return (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
+    }
 }

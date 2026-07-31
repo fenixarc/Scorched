@@ -1,7 +1,5 @@
 package scorched.sound;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -10,42 +8,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.concurrent.TimeUnit;
 
 class SoundEngineTest {
-
-    private MusicTrack testTrack;
-
-    @BeforeEach
-    void setUp() {
-        // Cut off any running music threads from previous tests
-        SoundEngine.stopMusic();
-
-        // Properly assemble your MusicTrack instance using its real Builder pattern
-        testTrack = new MusicTrack.Builder("Test Retro Beats")
-                .setNoteDurationMs(10) // Keeping it short so tests execute rapidly
-                .setBass(new double[]{55.0, 110.0}, 0)
-                .setMelody(new double[]{440.0, 880.0}, 1)
-                .setDrums(new int[]{1, 0, 1, 0}, 1)
-                .setSynth(new double[]{220.0, 330.0}, 1)
-                .build();
-    }
-
-    @AfterEach
-    void tearDown() {
-        // Guarantee clean up so background threads don't leak into subsequent tests
-        SoundEngine.stopMusic();
-    }
-
-    @Test
-    @Timeout(value = 2, unit = TimeUnit.SECONDS)
-    void testStartAndStopMusicLifecycle() throws InterruptedException {
-        // Act: Start the engine with our valid MusicTrack instance
-        SoundEngine.startMusic(testTrack);
-        
-        // Give the background sequencer thread a brief moment to spin up and process audio steps
-        Thread.sleep(150);
-
-        // Act & Assert: Stopping the music should join the thread and exit cleanly
-        assertDoesNotThrow(() -> SoundEngine.stopMusic());
-    }
 
     @Test
     @Timeout(value = 1, unit = TimeUnit.SECONDS)
@@ -136,24 +98,6 @@ class SoundEngineTest {
 
             SoundEngine.playPowerChargeSound(100.0); // Clamped overflow check
             Thread.sleep(70);
-        });
-    }
-
-    @Test
-    void testNullPatternsInMusicTrack() {
-        // Build an empty track via your real builder to confirm array-null safety fallbacks
-        MusicTrack emptyTrack = new MusicTrack.Builder("Empty Track")
-                .setNoteDurationMs(5)
-                .setBass(null, 0)
-                .setMelody(null, 0)
-                .setDrums(null, 0)
-                .setSynth(null, 0)
-                .build();
-
-        assertDoesNotThrow(() -> {
-            SoundEngine.startMusic(emptyTrack);
-            Thread.sleep(50);
-            SoundEngine.stopMusic();
         });
     }
 }
