@@ -1,5 +1,5 @@
 package scorched.game;
-import java.awt.Color;
+
 import java.awt.Graphics2D;
 import java.util.List;
 
@@ -17,8 +17,10 @@ public class Projectile {
 	private final int RADIUS; // Visual size of the missile
 	private final int EXPLOSION_RADIUS;
 	private final int DAMAGE;
+	private final AmmoType ammoType;
 
 	public Projectile(int startX, int startY, int angleDegrees, double power, AmmoType ammoType) {
+		this.ammoType = ammoType;
 		this.x = startX;
 		this.y = startY;
 		
@@ -97,7 +99,7 @@ public class Projectile {
 		if (!active)
 			return;
 
-		g2d.setColor(Color.YELLOW);
+		g2d.setColor(ammoType.getProjectileColor());
 		g2d.fillOval((int) x - RADIUS, (int) y - RADIUS, RADIUS * 2, RADIUS * 2);
 	}
 
@@ -119,5 +121,9 @@ public class Projectile {
 
 	public int getDamage() {
 		return DAMAGE;
+	}
+
+	public AmmoType getAmmoType() {
+		return ammoType;
 	}
 }

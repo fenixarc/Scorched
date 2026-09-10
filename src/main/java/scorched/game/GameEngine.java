@@ -90,6 +90,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	// Tracking Variables
 	private Projectile activeProjectile;
 	private List<Explosion> activeExplosions;
+	private List<ExplosionEffect> activeExplosionEffects;
 	private List<FloatingText> floatingTexts;
 	private int selectedPlayerCount;
 	private int activePlayerIndex;
@@ -214,6 +215,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Reset trackers
 		activeProjectile = null;
 		activeExplosions = new ArrayList<>();
+		activeExplosionEffects = new ArrayList<>();
 		floatingTexts = new ArrayList<>();
 		activePlayerIndex = 0;
 		lockControls = false;
@@ -281,6 +283,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 					activeExplosions.remove(i);
 			}
 
+			for (int i = activeExplosionEffects.size() - 1; i >= 0; i--) {
+				ExplosionEffect expEffect = activeExplosionEffects.get(i);
+				expEffect.update();
+				if (!expEffect.isActive())
+					activeExplosionEffects.remove(i);
+			}
+
 			for (int i = floatingTexts.size() - 1; i >= 0; i--) {
 				FloatingText ft = floatingTexts.get(i);
 				if (!ft.update())
@@ -339,6 +348,11 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 						// Create visual explosion and explode terrain (leaves dirt floating)
 						activeExplosions.add(new Explosion(ex, ey));
+						// If it's a MiniNuke, also add the expanding red circle effect and play its sound
+						if (activeProjectile.getAmmoType().getName().equals("MINI NUKE")) {
+							activeExplosionEffects.add(new ExplosionEffect(ex, ey, blastRadius));
+							SoundEngine.playMiniNukeExplosionSound();
+						}
 						terrain.explode(ex, ey, blastRadius);
 
 						// Calculate blast damage immediately upon impact
@@ -357,7 +371,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				}
 			} else {
 				// PHASE B: Projectile is done, wait for explosion animations to wrap up
-				boolean explosionsRunning = !activeExplosions.isEmpty();
+				boolean explosionsRunning = !activeExplosions.isEmpty() || !activeExplosionEffects.isEmpty();
 
 				if (explosionsRunning) {
 					// Wait
@@ -385,9 +399,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 							}
 
 							if (survivorsCount <= 1) {
-								MusicPlayer.stopMusic();
-								MusicPlayer.startMusic(MusicTracksList.VICTORY_THEME);
-								currentState = GameState.GAME_OVER;
+								// Wait for all debris, explosions, and terrain to settle before ending
+								boolean settling = !activeDebris.isEmpty() || !activeExplosions.isEmpty() || !activeExplosionEffects.isEmpty() || terrain.isCollapsing();
+								if (!settling) {
+									MusicPlayer.stopMusic();
+									MusicPlayer.startMusic(MusicTracksList.VICTORY_THEME);
+									currentState = GameState.GAME_OVER;
+								}
 							} else {
 								switchTurn();
 								lockControls = false;
@@ -783,6 +801,11 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Draw explosions
 		for (Explosion exp : activeExplosions) {
 			exp.draw(g2d);
+		}
+
+		// Draw expanding explosion effects
+		for (ExplosionEffect expEffect : activeExplosionEffects) {
+			expEffect.draw(g2d);
 		}
 
 		// Draw damage numbers

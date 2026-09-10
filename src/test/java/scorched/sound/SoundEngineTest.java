@@ -30,6 +30,15 @@ class SoundEngineTest {
     }
 
     @Test
+    @Timeout(value = 2, unit = TimeUnit.SECONDS)
+    void testPlayMiniNukeExplosionSoundDoesNotThrow() {
+        assertDoesNotThrow(() -> {
+            SoundEngine.playMiniNukeExplosionSound();
+            Thread.sleep(1050);
+        });
+    }
+
+    @Test
     @Timeout(value = 1, unit = TimeUnit.SECONDS)
     void testPlayFallDamageSoundDoesNotThrow() {
         // Verifies the heavy 3-layered 800ms explosion algorithm operates safely

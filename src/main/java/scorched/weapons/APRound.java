@@ -1,4 +1,5 @@
 package scorched.weapons;
+import java.awt.Color;
 
 /**
  * Armor piercing round.
@@ -16,6 +17,6 @@ public class APRound extends AmmoType {
     
     // No-argument constructor passes the specific ammo values to the parent constructor
     public APRound() {
-    	super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION);
+    	super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION, Color.RED);
     }
 }

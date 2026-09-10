@@ -199,7 +199,7 @@ public class Tank {
 	}
 
 	/**
-	 * Calculates damage based on proximity to an explosion center.
+	 * Reduces Tank health and checks if it died.
 	 */
 	public void takeDamage(int damage) {
 		if (!alive)

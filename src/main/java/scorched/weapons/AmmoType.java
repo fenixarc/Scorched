@@ -1,5 +1,7 @@
 package scorched.weapons;
 
+import java.awt.Color;
+
 /**
  * Supports loading different types of ammunition into tanks.
  */
@@ -12,15 +14,21 @@ public class AmmoType {
     private int damage;
     private int cost;
     private String description;
+    private Color projectileColor;
 
-    // Constructor to initialize properties
+    // Constructor to initialize properties with default color (Color.YELLOW)
     public AmmoType(String name, int radius, int explosionRadius, int damage, int cost, String description) {
+        this(name, radius, explosionRadius, damage, cost, description, Color.YELLOW);
+    }
+
+    public AmmoType(String name, int radius, int explosionRadius, int damage, int cost, String description, Color projectileColor) {
     	this.name = name;
         this.radius = radius;
         this.explosionRadius = explosionRadius;
         this.damage = damage;
         this.cost = cost;
         this.description = description;
+        this.projectileColor = projectileColor != null ? projectileColor : Color.YELLOW;
     }
     
     @Override
@@ -61,4 +69,8 @@ public class AmmoType {
 		return description;
 	}
     
+    public Color getProjectileColor() {
+        return projectileColor;
+    }
+
 }

@@ -12,20 +12,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class SoundEngine {
-	
+
 	// Audio override variables controlled by the settings menu
-	public static final AtomicInteger soundVolume = new AtomicInteger(7);     // Scale from 1 to 10
+	public static final AtomicInteger soundVolume = new AtomicInteger(7); // Scale from 1 to 10
 	public static final AtomicBoolean muteSound = new AtomicBoolean(false);
 
 	// Thread management
-    private static final ExecutorService sfxExecutor = Executors.newFixedThreadPool(4);
+	private static final ExecutorService sfxExecutor = Executors.newFixedThreadPool(4);
 
 	/**
 	 * Plays a sound effect asynchronously so it doesn't freeze the main game loop
 	 * thread.
 	 */
 	private static void playGeneratedSound(byte[] buffer) {
-		if (muteSound.get()) return; // Sound override check
+		if (muteSound.get())
+			return; // Sound override check
 		sfxExecutor.submit(() -> {
 			try {
 				// 16,000 samples per second, 8-bit mono
@@ -42,7 +43,7 @@ public class SoundEngine {
 				for (int i = 0; i < buffer.length; i++) {
 					scaledBuffer[i] = (byte) (buffer[i] * volumeScale);
 				}
-				
+
 				line.write(scaledBuffer, 0, scaledBuffer.length);
 				line.drain();
 				line.close();
@@ -100,10 +101,11 @@ public class SoundEngine {
 		}
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
 	 * Streams an incredibly heavy, multi-layered 8-bit explosion sound effect.
-	 * Simulates an initial supersonic shockwave, shattering metal, and a deep secondary rumble.
+	 * Simulates an initial supersonic shockwave, shattering metal, and a deep
+	 * secondary rumble.
 	 */
 	public static void playFallDamageSound() {
 		// Extended to 800ms to let the massive sub-bass rumble decay naturally
@@ -123,56 +125,60 @@ public class SoundEngine {
 
 			// LAYER 1: The Supersonic Shockwave (First 60 milliseconds)
 			if (msElapsed < 60) {
-				// Maximum pressure white noise with zero decay to clip the audio line aggressively
+				// Maximum pressure white noise with zero decay to clip the audio line
+				// aggressively
 				signal += (rand.nextDouble() * 2.0 - 1.0) * 1.2;
 			}
 
 			// LAYER 2: Tearing Metal & Fire (First 250 milliseconds)
 			if (msElapsed < 250) {
 				double noise = rand.nextDouble() * 2.0 - 1.0;
-				
+
 				// High-frequency square-ish crunch representing structural hull failure
 				double metalCrack = (Math.sin(i * 0.4) >= 0.0) ? 0.4 : -0.4;
-				
+
 				// Rapid volume fade out just for this metallic layer
 				double metalEnvelope = Math.pow(1.0 - (msElapsed / 250.0), 2);
-				
+
 				signal += (noise * 0.6 + metalCrack * 0.4) * metalEnvelope;
 			}
 
 			// LAYER 3: The Expanding Fuel Cook-Off & Deep Sub-Bass Rumble (Whole Duration)
-			// The frequency rapidly drops over time: starts at 90Hz and plunges down to an ultra-low 25Hz rumble
+			// The frequency rapidly drops over time: starts at 90Hz and plunges down to an
+			// ultra-low 25Hz rumble
 			double currentFreq = 90.0 * Math.pow(1.0 - progress, 3) + 25.0;
 			rumblePhase += (2.0 * Math.PI * currentFreq) / AudioUtils.SAMPLE_RATE;
-			
+
 			// Pure sine wave for that deep, chest-hitting sub-bass structure
 			double subBass = Math.sin(rumblePhase);
-			
+
 			// Modulate the sub-bass with white noise to make it sound dirty and explosive
 			double dirtyRumble = subBass * 0.5 + (subBass * (rand.nextDouble() * 2.0 - 1.0) * 0.5);
-			
+
 			// Long, smooth exponential decay envelope for the final rumble trail
 			double rumbleEnvelope = Math.pow(1.0 - progress, 4);
-			
+
 			signal += dirtyRumble * 1.0 * rumbleEnvelope;
 
 			// --- MASTER SATURATION & DRIVE BLOCK ---
 			// Amplify the mixed layers significantly to force digital distortion/overdrive
 			double highGainSignal = signal * 75.0;
 
-			// Hard clipping limits to protect the hardware buffer and create a gritty 8-bit distortion punch
+			// Hard clipping limits to protect the hardware buffer and create a gritty 8-bit
+			// distortion punch
 			highGainSignal = AudioUtils.clampToByte(highGainSignal);
 
 			buffer[i] = (byte) highGainSignal;
 		}
 
-		// Pass the synthesized buffer off to the central asynchronous sound engine player
+		// Pass the synthesized buffer off to the central asynchronous sound engine
+		// player
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
-	 * Synthesizes a crisp, short 8-bit blip mimicking a menu item selection.
-	 * Uses a rapid frequency jump and sharp exponential decay for responsiveness.
+	 * Synthesizes a crisp, short 8-bit blip mimicking a menu item selection. Uses a
+	 * rapid frequency jump and sharp exponential decay for responsiveness.
 	 */
 	public static void playMenuSelectSound() {
 		int durationMs = 80; // Short and snappy
@@ -181,7 +187,7 @@ public class SoundEngine {
 
 		for (int i = 0; i < numSamples; i++) {
 			double progress = (double) i / numSamples;
-			
+
 			// Frequency starts clear at 600Hz and leaps up to 1200Hz halfway through
 			double frequency = (progress < 0.4) ? 600.0 : 1200.0;
 			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
@@ -193,13 +199,13 @@ public class SoundEngine {
 
 			// Sharp exponential decay envelope so it doesn't linger
 			double volumeEnvelope = Math.pow(1.0 - progress, 3);
-			
+
 			// Map to 8-bit byte bounds (max amplitude around 60 to keep it pleasant)
 			buffer[i] = (byte) (mixedWave * 60.0 * volumeEnvelope);
 		}
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
 	 * Synthesizes a bright, rapid 3-note arpeggio mimicking a menu confirmation.
 	 * Progresses quickly through a major triad for a rewarding, positive UI feel.
@@ -211,7 +217,7 @@ public class SoundEngine {
 
 		for (int i = 0; i < numSamples; i++) {
 			double progress = (double) i / numSamples;
-			
+
 			// Divide the sound into 3 rapid stages (an 8-bit arpeggio)
 			double frequency;
 			if (progress < 0.25) {
@@ -226,18 +232,18 @@ public class SoundEngine {
 
 			// Duty cycle modulation for a classic "chiptune" pulse width flavor
 			// Alternates between a square wave and a lean pulse wave over time
-			double dutyCycle = 0.5 - (progress * 0.25); 
+			double dutyCycle = 0.5 - (progress * 0.25);
 			double pulseWave = (Math.sin(angle) >= Math.sin(dutyCycle * Math.PI)) ? 1.0 : -1.0;
 
 			// Smooth exponential decay envelope so the final note fades out cleanly
 			double volumeEnvelope = Math.pow(1.0 - progress, 2);
-			
+
 			// Map to 8-bit byte bounds (kept at a balanced volume level)
 			buffer[i] = (byte) (pulseWave * 65.0 * volumeEnvelope);
 		}
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
 	 * Synthesizes a rapid, mechanical gear click for rotating the tank barrel.
 	 * Intended to be triggered repeatedly in the game loop while the barrel turns.
@@ -250,41 +256,45 @@ public class SoundEngine {
 
 		for (int i = 0; i < numSamples; i++) {
 			double progress = (double) i / numSamples;
-			
+
 			// Low-frequency mechanical hum (90Hz) shifting down slightly
 			double frequency = 90.0 - (progress * 20.0);
 			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
 			// Generate a harsh triangle/sawtooth hybrid for gear tooth friction
 			double triangleWave = (Math.abs((angle % (2.0 * Math.PI)) - Math.PI) / Math.PI) * 2.0 - 1.0;
-			
-			// Inject a tiny burst of metal-on-metal friction noise at the start of the click
+
+			// Inject a tiny burst of metal-on-metal friction noise at the start of the
+			// click
 			double mechanicalNoise = (rand.nextDouble() * 2.0 - 1.0) * (1.0 - progress);
-			
+
 			double mixedSignal = (triangleWave * 0.7) + (mechanicalNoise * 0.3);
 
 			// Linear fade out so consecutive gear clicks blend seamlessly
 			double volumeEnvelope = 1.0 - progress;
-			
+
 			double volumeScale = 12.0;
-			
+
 			// Kept relatively quiet so a continuous loop isn't deafening
 			buffer[i] = (byte) (mixedSignal * volumeScale * volumeEnvelope);
 		}
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
-	 * Synthesizes a charging energy pulse for when the tank is raising power.
-	 * Call this repeatedly in the game loop while charging, passing the current power level.
+	 * Synthesizes a charging energy pulse for when the tank is raising power. Call
+	 * this repeatedly in the game loop while charging, passing the current power
+	 * level.
 	 */
 	public static void playPowerChargeSound(double powerLevel) {
 		// Normalize the range into a 0.0 to 1.0 ratio for the synth math
 		double powerRatio = (powerLevel - 1) / Tank.getMaxPower();
-		
+
 		// Bound safety check
-		if (powerRatio < 0.0) powerRatio = 0.0;
-		if (powerRatio > 1.0) powerRatio = 1.0;
+		if (powerRatio < 0.0)
+			powerRatio = 0.0;
+		if (powerRatio > 1.0)
+			powerRatio = 1.0;
 
 		int durationMs = 60; // Short window for smooth, continuous updates
 		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
@@ -300,7 +310,7 @@ public class SoundEngine {
 		for (int i = 0; i < numSamples; i++) {
 			double progress = (double) i / numSamples;
 			double currentFreq = startFreq * (1.0 - progress) + (endFreq * progress);
-			
+
 			// Track phase angle
 			double angle = 2.0 * Math.PI * currentFreq * i / AudioUtils.SAMPLE_RATE;
 
@@ -311,15 +321,16 @@ public class SoundEngine {
 			double dutyCycle = 0.5 - (powerRatio * 0.3);
 			double pulseSignal = (Math.sin(angle) >= Math.sin(dutyCycle * Math.PI)) ? 1.0 : -1.0;
 
-			// Channel 3: Unstable plasma hum (White noise injected more heavily at max power)
+			// Channel 3: Unstable plasma hum (White noise injected more heavily at max
+			// power)
 			double instabilityNoise = (rand.nextDouble() * 2.0 - 1.0) * powerRatio * 0.4;
 
 			// Blend layers dynamically
 			double mixedSignal = (coreSignal * 0.5) + (pulseSignal * (0.2 + powerRatio * 0.3)) + instabilityNoise;
 
 			// Smooth volume envelope to prevent clicking between updates
-			double volumeEnvelope = Math.sin(progress * Math.PI); 
-			
+			double volumeEnvelope = Math.sin(progress * Math.PI);
+
 			// LOWERED VOLUME SCALE: Sits between 10.0 and 20.0 (Down from 25.0 - 50.0)
 			// This keeps it background-level compared to explosions and gunfire.
 			double volumeScale = 8.0 + (powerRatio * 8.0);
@@ -328,11 +339,11 @@ public class SoundEngine {
 		}
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
 	 * Synthesizes a two-tiered explosion blast lasting approximately 1 second.
-	 * Features a louder second blast and randomized pitches for both tiers 
-	 * to ensure distinct sound variations on each playback.
+	 * Features a louder second blast and randomized pitches for both tiers to
+	 * ensure distinct sound variations on each playback.
 	 */
 	public static void playTankDeathSound() {
 		int totalDurationMs = 1000;
@@ -341,13 +352,14 @@ public class SoundEngine {
 		Random random = new Random();
 
 		// Timing offsets in samples
-		int tier1Duration = (AudioUtils.SAMPLE_RATE * 700) / 1000;  // First blast lasts 700ms
-		int tier2Start = (AudioUtils.SAMPLE_RATE * 300) / 1000;     // Second blast starts at 300ms
-		int tier2Duration = numSamples - tier2Start;      // Second blast lasts remaining 700ms
+		int tier1Duration = (AudioUtils.SAMPLE_RATE * 700) / 1000; // First blast lasts 700ms
+		int tier2Start = (AudioUtils.SAMPLE_RATE * 300) / 1000; // Second blast starts at 300ms
+		int tier2Duration = numSamples - tier2Start; // Second blast lasts remaining 700ms
 
-		// Pitch Randomization: Slightly alters the low-pass filter coefficients each run
+		// Pitch Randomization: Slightly alters the low-pass filter coefficients each
+		// run
 		// Tier 1 base filter center is ~0.92 (deeper). Variance: 0.90 to 0.94
-		double tier1FilterBase = 0.90 + (random.nextDouble() * 0.04); 
+		double tier1FilterBase = 0.90 + (random.nextDouble() * 0.04);
 		double tier1FilterInv = 1.0 - tier1FilterBase;
 
 		// Tier 2 base filter center is ~0.74 (higher/sharper). Variance: 0.70 to 0.78
@@ -375,12 +387,13 @@ public class SoundEngine {
 				int tier2Index = i - tier2Start;
 				double progress2 = (double) tier2Index / tier2Duration;
 				lowPassTier2 = lowPassTier2 * tier2FilterBase + rawNoise * tier2FilterInv;
-				double envelope2 = 1.0 - progress2; 
+				double envelope2 = 1.0 - progress2;
 				tier2Sample = lowPassTier2 * envelope2;
 			}
 
 			// --- Combine and Mix ---
-			// Tier 1 volume is scaled back (0.5) while Tier 2 is pushed forward (1.1) for maximum impact
+			// Tier 1 volume is scaled back (0.5) while Tier 2 is pushed forward (1.1) for
+			// maximum impact
 			double mixedSample = (tier1Sample * 0.5) + (tier2Sample * 1.1);
 
 			// Hard clamp to prevent digital distortion clipping past byte boundaries
@@ -391,10 +404,10 @@ public class SoundEngine {
 
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
-	 * Synthesizes a massive, low-frequency white noise explosion mimicking 
-	 * a sharp lightning strike crack followed by a deep rolling thunder decay.
+	 * Synthesizes a massive, low-frequency white noise explosion mimicking a sharp
+	 * lightning strike crack followed by a deep rolling thunder decay.
 	 */
 	public static void playThunderSound() {
 		int durationMs = 1200; // 1.2 seconds of rolling thunder
@@ -421,7 +434,7 @@ public class SoundEngine {
 			// LAYER 2: The Rolling Deep Rumble (Whole Duration)
 			// Smooth low-pass filter to block highs and create bass structure
 			lowPassFilter = lowPassFilter * 0.93 + noise * 0.07;
-			
+
 			// Non-linear decay envelope so the rumble trails off naturally
 			double rumbleEnvelope = Math.pow(1.0 - progress, 3);
 			double rumbleSignal = lowPassFilter * 1.2 * rumbleEnvelope;
@@ -435,11 +448,55 @@ public class SoundEngine {
 		}
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
-	 * Synthesizes a massive, celestial impact sound effect.
-	 * Features a high-velocity descending phase sweep (the meteor entry)
-	 * followed by a saturated low-frequency kinetic white noise explosion.
+	 * Synthesizes a massive, expanding explosion sound effect for the Mini Nuke.
+	 * Features a deep, sustained rumble that grows in intensity and then slowly
+	 * fades.
+	 */
+	public static void playMiniNukeExplosionSound() {
+		int durationMs = 1000; // 1 second
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
+		byte[] buffer = new byte[numSamples];
+		Random random = new Random();
+
+		double lowPassFilter = 0.0;
+		double phase = 0.0;
+
+		for (int i = 0; i < numSamples; i++) {
+			double progress = (double) i / numSamples;
+
+			// Generate raw white noise
+			double noise = random.nextInt(256) - 128;
+
+			// Dynamically adjust low-pass filter cutoff to rise slightly with pitch (from deep 0.96 down to 0.88)
+			double filterFactor = 0.96 - (progress * 0.08);
+			lowPassFilter = lowPassFilter * filterFactor + noise * (1.0 - filterFactor);
+
+			// Frequency smoothly rises throughout runtime (e.g., 40Hz sub-bass up to 130Hz)
+			double frequency = 40.0 + (progress * 90.0);
+			phase += (2.0 * Math.PI * frequency) / AudioUtils.SAMPLE_RATE;
+			double sineWave = Math.sin(phase);
+
+			// Combine filtered noise with the rising fundamental tone
+			double mixedSignal = (lowPassFilter * 0.65) + (sineWave * 0.35);
+
+			// Volume envelope: strong initial blast sustained through the rise with smooth tailoff
+			double envelope = Math.sin(Math.pow(progress, 0.7) * Math.PI);
+
+			// Amplify and clamp
+			double finalSignal = mixedSignal * 105.0 * envelope;
+			finalSignal = AudioUtils.clampToByte(finalSignal);
+
+			buffer[i] = (byte) finalSignal;
+		}
+		playGeneratedSound(buffer);
+	}
+
+	/**
+	 * Synthesizes a massive, celestial impact sound effect. Features a
+	 * high-velocity descending phase sweep (the meteor entry) followed by a
+	 * saturated low-frequency kinetic white noise explosion.
 	 */
 	public static void playMeteorStrikeSound() {
 		int durationMs = 1100; // 1.1 seconds of destructive entry and impact
@@ -448,7 +505,7 @@ public class SoundEngine {
 		Random random = new Random();
 
 		// The entry streak phase lasts for the first 250 milliseconds
-		int entrySamples = (AudioUtils.SAMPLE_RATE * 250) / 1000; 
+		int entrySamples = (AudioUtils.SAMPLE_RATE * 250) / 1000;
 		double lowPassFilter = 0.0;
 
 		for (int i = 0; i < numSamples; i++) {
@@ -460,14 +517,14 @@ public class SoundEngine {
 			// --- PHASE 1: THE INCOMING PLASMA ENTRY STREAK ---
 			if (i < entrySamples) {
 				double entryProgress = (double) i / entrySamples;
-				
+
 				// Rapidly descending whistling sweep (starts at 1800Hz, drops to 150Hz)
 				double entryFreq = 1800.0 * Math.pow(1.0 - entryProgress, 2) + 150.0;
 				double entryAngle = 2.0 * Math.PI * entryFreq * i / AudioUtils.SAMPLE_RATE;
-				
+
 				// Triangle wave for a clean but piercing friction whistle tone
 				double whistleWave = (Math.abs((entryAngle % (2.0 * Math.PI)) - Math.PI) / Math.PI) * 2.0 - 1.0;
-				
+
 				// Mix tone with high-pass filtered friction hiss
 				signal += (whistleWave * 0.4 + (rawNoise * 0.3)) * entryProgress;
 			}
@@ -476,13 +533,13 @@ public class SoundEngine {
 			// Triggers right at the 250ms threshold
 			if (msElapsed >= 250.0) {
 				double impactProgress = (msElapsed - 250.0) / (durationMs - 250.0);
-				
+
 				// Heavy low-pass filter mapping for ground displacement rumble
 				lowPassFilter = lowPassFilter * 0.88 + rawNoise * 0.12;
-				
+
 				// Exponential volume drop-off as the shockwave disperses
 				double impactEnvelope = Math.pow(1.0 - impactProgress, 3);
-				
+
 				signal += lowPassFilter * 1.5 * impactEnvelope;
 			}
 
@@ -497,11 +554,11 @@ public class SoundEngine {
 
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
-	 * Synthesizes a crisp, clear 8-bit chime mimicking a game pause event.
-	 * Drops rapidly between two clean, high-register frequencies with a tight
-	 * volume envelope to ensure an instant, responsive interface feel.
+	 * Synthesizes a crisp, clear 8-bit chime mimicking a game pause event. Drops
+	 * rapidly between two clean, high-register frequencies with a tight volume
+	 * envelope to ensure an instant, responsive interface feel.
 	 */
 	public static void playPauseSound() {
 		int durationMs = 120; // Short and distinct
@@ -510,8 +567,9 @@ public class SoundEngine {
 
 		for (int i = 0; i < numSamples; i++) {
 			double progress = (double) i / numSamples;
-			
-			// Two distinct steps: starts bright at 900Hz, then drops to 700Hz halfway through
+
+			// Two distinct steps: starts bright at 900Hz, then drops to 700Hz halfway
+			// through
 			double frequency = (progress < 0.5) ? 900.0 : 700.0;
 			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
@@ -521,17 +579,17 @@ public class SoundEngine {
 			// Linear fade out for each half of the note structure to keep it punchy
 			double noteProgress = (progress < 0.5) ? (progress / 0.5) : ((progress - 0.5) / 0.5);
 			double volumeEnvelope = 1.0 - noteProgress;
-			
+
 			// Balanced volume scale (around 45) so it doesn't pierce the ears
 			buffer[i] = (byte) (squareWave * 45.0 * volumeEnvelope);
 		}
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
-	 * Synthesizes a crisp 8-bit chime for when the game is unpaused.
-	 * Reverses the note order of the pause sound by stepping upward from 
-	 * 700Hz to 900Hz, while keeping a clean, forward-fading volume decay.
+	 * Synthesizes a crisp 8-bit chime for when the game is unpaused. Reverses the
+	 * note order of the pause sound by stepping upward from 700Hz to 900Hz, while
+	 * keeping a clean, forward-fading volume decay.
 	 */
 	public static void playUnpauseSound() {
 		int durationMs = 120; // Matches the pause duration exactly
@@ -540,8 +598,9 @@ public class SoundEngine {
 
 		for (int i = 0; i < numSamples; i++) {
 			double progress = (double) i / numSamples;
-			
-			// Reversed note order: starts low at 700Hz, then steps up to 900Hz halfway through
+
+			// Reversed note order: starts low at 700Hz, then steps up to 900Hz halfway
+			// through
 			double frequency = (progress < 0.5) ? 700.0 : 900.0;
 			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
@@ -550,17 +609,18 @@ public class SoundEngine {
 
 			// Forward decay: Each note strikes cleanly and fades out down to 0.0
 			double noteProgress = (progress < 0.5) ? (progress / 0.5) : ((progress - 0.5) / 0.5);
-			double volumeEnvelope = 1.0 - noteProgress; 
-			
+			double volumeEnvelope = 1.0 - noteProgress;
+
 			// Balanced volume scale (around 45) to match the pause audio levels
 			buffer[i] = (byte) (squareWave * 45.0 * volumeEnvelope);
 		}
 		playGeneratedSound(buffer);
 	}
-	
+
 	/**
-	 * Synthesizes a harsh, two-tone descending 8-bit buzz mimicking an error or invalid move.
-	 * Drops from a dissonant mid-register tone down to a low buzz with a sharp decay.
+	 * Synthesizes a harsh, two-tone descending 8-bit buzz mimicking an error or
+	 * invalid move. Drops from a dissonant mid-register tone down to a low buzz
+	 * with a sharp decay.
 	 */
 	public static void playErrorSound() {
 		int durationMs = 160; // Short and snappy error feedback
@@ -570,14 +630,15 @@ public class SoundEngine {
 
 		for (int i = 0; i < numSamples; i++) {
 			double progress = (double) i / numSamples;
-			
-			// Two distinct descending tones: starts at a dissonant 300Hz, then drops to 150Hz
+
+			// Two distinct descending tones: starts at a dissonant 300Hz, then drops to
+			// 150Hz
 			double frequency = (progress < 0.4) ? 300.0 : 150.0;
 			double angle = 2.0 * Math.PI * frequency * i / AudioUtils.SAMPLE_RATE;
 
 			// Channel 1: Square wave for retro chiptune buzz
 			double squareWave = squareWave(angle);
-			
+
 			// Channel 2: Sawtooth wave for additional abrasive texture
 			double sawWave = (Math.abs((angle % (2.0 * Math.PI)) - Math.PI) / Math.PI) * 2.0 - 1.0;
 
@@ -588,16 +649,17 @@ public class SoundEngine {
 
 			// Sharp exponential decay envelope so it cuts off cleanly
 			double volumeEnvelope = Math.pow(1.0 - progress, 2);
-			
-			// Scaled amplitude (around 50) to make it clear without clipping or overwhelming other UI audio
+
+			// Scaled amplitude (around 50) to make it clear without clipping or
+			// overwhelming other UI audio
 			buffer[i] = (byte) (mixedSignal * 50.0 * volumeEnvelope);
 		}
 		playGeneratedSound(buffer);
 	}
-	
+
 	// Helper Methods
-	
+
 	public static double squareWave(double angle) {
-        return (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
-    }
+		return (Math.sin(angle) >= 0.0) ? 1.0 : -1.0;
+	}
 }
