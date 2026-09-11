@@ -91,6 +91,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private Projectile activeProjectile;
 	private List<Explosion> activeExplosions;
 	private List<ExplosionEffect> activeExplosionEffects;
+	private List<EffectZone> activeEffectZones;
 	private List<FloatingText> floatingTexts;
 	private int selectedPlayerCount;
 	private int activePlayerIndex;
@@ -216,6 +217,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		activeProjectile = null;
 		activeExplosions = new ArrayList<>();
 		activeExplosionEffects = new ArrayList<>();
+		activeEffectZones = new ArrayList<>();
 		floatingTexts = new ArrayList<>();
 		activePlayerIndex = 0;
 		lockControls = false;
@@ -290,6 +292,16 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 					activeExplosionEffects.remove(i);
 			}
 
+			for (int i = activeEffectZones.size() - 1; i >= 0; i--) {
+				EffectZone zone = activeEffectZones.get(i);
+				if (zone instanceof AcidZone) {
+					((AcidZone) zone).update();
+				}
+				if (zone.isExpired()) {
+					activeEffectZones.remove(i);
+				}
+			}
+
 			for (int i = floatingTexts.size() - 1; i >= 0; i--) {
 				FloatingText ft = floatingTexts.get(i);
 				if (!ft.update())
@@ -348,11 +360,17 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 						// Create visual explosion and explode terrain (leaves dirt floating)
 						activeExplosions.add(new Explosion(ex, ey));
-						// If it's a MiniNuke, also add the expanding red circle effect and play its sound
-						if (activeProjectile.getAmmoType().getName().equals("MINI NUKE")) {
+						
+						// Handle special effects
+						AmmoType ammo = activeProjectile.getAmmoType();
+						if (ammo.getName().equals("MINI NUKE")) {
 							activeExplosionEffects.add(new ExplosionEffect(ex, ey, blastRadius));
 							SoundEngine.playMiniNukeExplosionSound();
+						} else if (ammo.getEffectRadius() > 0) {
+							if (ammo.getName().equals("ACID ROUND"))
+									activeEffectZones.add(new AcidZone(ex, ey, ammo.getEffectRadius(), ammo.getEffectTurns(), ammo.getEffectDamage(), terrain));
 						}
+						
 						terrain.explode(ex, ey, blastRadius);
 
 						// Calculate blast damage immediately upon impact
@@ -387,10 +405,20 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 								tanksMoving = true;
 							}
 						}
-
+						
 						// PHASE E: Tanks are stable. Turn Management and Round-End Processing
 						if (lockControls && isShotFired && !tanksMoving) {
 							activeProjectile = null;
+							
+							// PHASE F: Apply persistent effects
+							for (EffectZone zone : activeEffectZones) {
+								for (Tank t : tanks) {
+									if (t.isAlive()) {
+										zone.applyEffect(t);
+									}
+								}
+								zone.decrementTurn();
+							}
 
 							int survivorsCount = 0;
 							for (Tank t : tanks) {
@@ -453,7 +481,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	}
 
 	/**
-	 * Interface for tank fall damage.
+	 * Interface for tank damage.
 	 */
 	@Override
 	public void onTankTakeDamage(int tankX, int tankY, int amount) {
@@ -724,13 +752,19 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        g2d.drawString("COST: $" + selectedAmmo.getCost(), descBoxX + 20, descBoxY + 75);
 	        g2d.drawString("DAMAGE: " + selectedAmmo.getDamage(), descBoxX + 20, descBoxY + 100);
 	        g2d.drawString("BLAST RADIUS: " + selectedAmmo.getExplosionRadius(), descBoxX + 20, descBoxY + 125);
+	        
+	        if (selectedAmmo.getEffectRadius() > 0) {
+	            g2d.drawString("EFFECT RADIUS: " + selectedAmmo.getEffectRadius(), descBoxX + 20, descBoxY + 150);
+	            g2d.drawString("EFFECT TURNS: " + selectedAmmo.getEffectTurns(), descBoxX + 20, descBoxY + 175);
+	            g2d.drawString("EFFECT DAMAGE: " + selectedAmmo.getEffectDamage(), descBoxX + 20, descBoxY + 200);
+	        }
 
 	        // Description Body Text
 	        g2d.setFont(new Font("Arial", Font.PLAIN, 15));
 	        g2d.setColor(Color.WHITE);
 
 	        String description = selectedAmmo.getDescription(); // Make sure AmmoType has getDescription()
-	        drawWrappedText(g2d, description, descBoxX + 20, descBoxY + 160, descBoxWidth - 40);
+	        drawWrappedText(g2d, description, descBoxX + 20, descBoxY + (selectedAmmo.getEffectRadius() > 0 ? 230 : 160), descBoxWidth - 40);
 	    }
 
 	    // Footer Instructions
@@ -806,6 +840,11 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Draw expanding explosion effects
 		for (ExplosionEffect expEffect : activeExplosionEffects) {
 			expEffect.draw(g2d);
+		}
+
+		// Draw effect zones
+		for (EffectZone zone : activeEffectZones) {
+			zone.draw(g2d);
 		}
 
 		// Draw damage numbers

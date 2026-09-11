@@ -98,9 +98,6 @@ public class Tank {
 				if (fallDamage > 0) {
 					SoundEngine.playFallDamageSound();
 					this.takeDamage(fallDamage);
-					if (damageListener != null) {
-			            damageListener.onTankTakeDamage(this.x, this.y, fallDamage);
-			        }
 				}
 			}
 		}
@@ -207,6 +204,10 @@ public class Tank {
 
 		System.out.println(this.getName() + " sustained damage: " + damage);
 		this.currentHealth -= damage;
+		
+		if (damageListener != null) {
+            damageListener.onTankTakeDamage(this.x, this.y, damage);
+        }
 		
 		// Kill tank
 		if (this.currentHealth <= 0) {

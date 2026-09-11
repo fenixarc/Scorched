@@ -1,4 +1,5 @@
 package scorched.weapons;
+
 import java.awt.Color;
 
 /**
@@ -14,9 +15,10 @@ public class APRound extends AmmoType {
 	private static int DAMAGE = 80;
 	private static int COST = 200;
 	private static String DESCRIPTION = "Armor Piercing around. Higher damage, lower explosion.";
+	private static Color PROJECTILE_COLOR = Color.RED;
     
     // No-argument constructor passes the specific ammo values to the parent constructor
     public APRound() {
-    	super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION, Color.RED);
+    	super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION, PROJECTILE_COLOR);
     }
 }

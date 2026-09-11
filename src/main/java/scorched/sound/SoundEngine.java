@@ -657,6 +657,26 @@ public class SoundEngine {
 		playGeneratedSound(buffer);
 	}
 
+	/**
+	 * Synthesizes a high-pitched, sizzling "hiss" sound effect for acid damage.
+	 */
+	public static void playAcidDamageSound() {
+		int durationMs = 150;
+		int numSamples = (AudioUtils.SAMPLE_RATE * durationMs) / 1000;
+		byte[] buffer = new byte[numSamples];
+		Random rand = new Random();
+
+		for (int i = 0; i < numSamples; i++) {
+			double progress = (double) i / numSamples;
+			// High-frequency white noise
+			double noise = (rand.nextDouble() * 2.0 - 1.0);
+			// Volume envelope: sharp attack, quick decay
+			double volumeEnvelope = Math.pow(1.0 - progress, 2);
+			buffer[i] = (byte) (noise * 40.0 * volumeEnvelope);
+		}
+		playGeneratedSound(buffer);
+	}
+
 	// Helper Methods
 
 	public static double squareWave(double angle) {

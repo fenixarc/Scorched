@@ -1,4 +1,5 @@
 package scorched.weapons;
+
 import java.awt.Color;
 
 /**
@@ -14,9 +15,10 @@ public class MiniNuke extends AmmoType {
 	private static int DAMAGE = 100;
 	private static int COST = 1000;
 	private static String DESCRIPTION = "Small nuclear device. High damage and explosion.";
+	private static Color PROJECTILE_COLOR = Color.GRAY;
     
     // No-argument constructor passes the specific ammo values to the parent constructor
     public MiniNuke() {
-        super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION, Color.GRAY);
+        super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION, PROJECTILE_COLOR);
     }
 }

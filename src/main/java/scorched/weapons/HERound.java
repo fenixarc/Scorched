@@ -1,5 +1,7 @@
 package scorched.weapons;
 
+import java.awt.Color;
+
 /**
  * High explosive round.
  * Average damage and explosion.
@@ -13,9 +15,10 @@ public class HERound extends AmmoType {
 	private static int DAMAGE = 60;
 	private static int COST = 100;
 	private static String DESCRIPTION = "High Explosive around. Average damage and explosion.";
+	private static Color PROJECTILE_COLOR = Color.YELLOW;
     
     // No-argument constructor passes the specific ammo values to the parent constructor
     public HERound() {
-        super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION);
+        super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION, PROJECTILE_COLOR);
     }
 }
