@@ -66,7 +66,8 @@ public class Projectile {
 
 		// Iterate through the player list to find direct hits on any active tank
 		for (Tank t : tankList) {
-			if (t.isAlive() && t.checkHit(x, y)) {
+			if (t.isAlive() && t.checkHit(x, y, RADIUS)) {
+				
 				active = false;
 				this.impactX = (int) x;
 				this.impactY = (int) y;
@@ -79,8 +80,19 @@ public class Projectile {
 
 		// Check if projectile hits the ground
 		if (y >= 0 && x >= 0 && x < screenWidth) {
-			int groundY = terrain.getHeightAt((int) x);
-			if (y >= groundY) {
+			// Check if any point within the radius hits the ground
+			boolean hitGround = false;
+			for (int i = (int)(x - RADIUS); i <= (int)(x + RADIUS); i++) {
+				if (i >= 0 && i < screenWidth) {
+					int groundY = terrain.getHeightAt(i);
+					if (y + RADIUS >= groundY) {
+						hitGround = true;
+						break;
+					}
+				}
+			}
+			
+			if (hitGround) {
 				active = false;
 
 				this.impactX = (int) x;
@@ -126,4 +138,9 @@ public class Projectile {
 	public AmmoType getAmmoType() {
 		return ammoType;
 	}
+
+	public int getRADIUS() {
+		return RADIUS;
+	}
+	
 }

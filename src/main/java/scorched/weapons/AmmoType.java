@@ -18,17 +18,18 @@ public class AmmoType {
     private int effectRadius;
     private int effectTurns;
     private int effectDamage;
+    private int roundsFired;
 
     // Constructor to initialize properties with default color (Color.YELLOW)
     public AmmoType(String name, int radius, int explosionRadius, int damage, int cost, String description) {
-        this(name, radius, explosionRadius, damage, cost, description, Color.YELLOW, 0, 0, 0);
+        this(name, radius, explosionRadius, damage, cost, description, Color.YELLOW, 0, 0, 0, 1);
     }
 
     public AmmoType(String name, int radius, int explosionRadius, int damage, int cost, String description, Color projectileColor) {
-        this(name, radius, explosionRadius, damage, cost, description, projectileColor, 0, 0, 0);
+        this(name, radius, explosionRadius, damage, cost, description, projectileColor, 0, 0, 0, 1);
     }
 
-    public AmmoType(String name, int radius, int explosionRadius, int damage, int cost, String description, Color projectileColor, int effectRadius, int effectTurns, int effectDamage) {
+    public AmmoType(String name, int radius, int explosionRadius, int damage, int cost, String description, Color projectileColor, int effectRadius, int effectTurns, int effectDamage, int roundsFired) {
     	this.name = name;
         this.radius = radius;
         this.explosionRadius = explosionRadius;
@@ -39,6 +40,7 @@ public class AmmoType {
         this.effectRadius = effectRadius;
         this.effectTurns = effectTurns;
         this.effectDamage = effectDamage;
+        this.roundsFired = roundsFired;
     }
     
     @Override
@@ -94,5 +96,13 @@ public class AmmoType {
     public int getEffectDamage() {
         return effectDamage;
     }
+
+	public int getRoundsFired() {
+		return roundsFired;
+	}
+
+	public void setRoundsFired(int roundsFired) {
+		this.roundsFired = roundsFired;
+	}
 
 }

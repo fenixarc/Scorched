@@ -106,7 +106,7 @@ class ProjectileTest {
 
         // Setup Tank to trigger a successful hit
         when(mockTank.isAlive()).thenReturn(true);
-        when(mockTank.checkHit(anyDouble(), anyDouble())).thenReturn(true);
+        when(mockTank.checkHit(anyDouble(), anyDouble(), anyInt())).thenReturn(true);
 
         projectile.update(mockTerrain, tankList, 800, 600);
 

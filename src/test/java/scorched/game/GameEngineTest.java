@@ -13,6 +13,7 @@ import scorched.enums.PlayerConfigMenuOptions;
 import scorched.enums.PlayerDifficulty;
 import scorched.sound.SoundEngine;
 import scorched.weapons.HERound;
+import scorched.weapons.ScatterShot;
 
 import java.awt.event.KeyEvent;
 import java.lang.reflect.Field;
@@ -377,8 +378,10 @@ class GameEngineTest {
         when(mockTank.getPower()).thenReturn(50.0);
         when(mockTank.getCurrentAmmoType()).thenReturn(new HERound());
 
-        Field activeProjectileField = GameEngine.class.getDeclaredField("activeProjectile");
-        activeProjectileField.setAccessible(true);
+        Field activeProjectilesField = GameEngine.class.getDeclaredField("activeProjectiles");
+        activeProjectilesField.setAccessible(true);
+        activeProjectilesField.set(gameEngine, new ArrayList<Projectile>());
+        
         Field lockControlsField = GameEngine.class.getDeclaredField("lockControls");
         lockControlsField.setAccessible(true);
 
@@ -386,7 +389,35 @@ class GameEngineTest {
         gameEngine.executeTankFire(mockTank);
 
         // Assert
-        assertNotNull(activeProjectileField.get(gameEngine), "An active projectile should be generated");
+        List<?> activeProjectiles = (List<?>) activeProjectilesField.get(gameEngine);
+        assertFalse(activeProjectiles.isEmpty(), "An active projectile should be generated");
+        assertTrue((boolean) lockControlsField.get(gameEngine), "Controls should lock upon firing");
+    }
+    
+    @Test
+    @DisplayName("executeTankFire for ScatterShot generates multiple projectiles")
+    void testExecuteTankFireScatterShot() throws Exception {
+        // Arrange
+        Tank mockTank = mock(Tank.class);
+        when(mockTank.getX()).thenReturn(100);
+        when(mockTank.getY()).thenReturn(200);
+        when(mockTank.getBarrelAngle()).thenReturn(45);
+        when(mockTank.getPower()).thenReturn(50.0);
+        when(mockTank.getCurrentAmmoType()).thenReturn(new ScatterShot());
+
+        Field activeProjectilesField = GameEngine.class.getDeclaredField("activeProjectiles");
+        activeProjectilesField.setAccessible(true);
+        activeProjectilesField.set(gameEngine, new ArrayList<Projectile>());
+        
+        Field lockControlsField = GameEngine.class.getDeclaredField("lockControls");
+        lockControlsField.setAccessible(true);
+
+        // Act
+        gameEngine.executeTankFire(mockTank);
+
+        // Assert
+        List<?> activeProjectiles = (List<?>) activeProjectilesField.get(gameEngine);
+        assertEquals(8, activeProjectiles.size(), "ScatterShot should generate 8 projectiles");
         assertTrue((boolean) lockControlsField.get(gameEngine), "Controls should lock upon firing");
     }
     

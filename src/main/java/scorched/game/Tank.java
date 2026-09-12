@@ -225,6 +225,41 @@ public class Tank {
 	}
 
 	/**
+	 * Reduces Tank health and checks if it died.
+	 * Calculates damage based on distance from explosion center to the closest edge of the tank.
+	 */
+	public void calculateDamage(double explosionX, double explosionY, int blastRadius, int maxDamage) {
+		if (!alive)
+			return;
+
+		double dist = getDistanceTo(explosionX, explosionY);
+		
+		if (dist < blastRadius) {
+			double damageFactor = 1.0 - (dist / blastRadius);
+			int damage = (int) (damageFactor * maxDamage);
+			
+			if (damage > 0) {
+				this.takeDamage(damage);
+			}
+		}
+	}
+
+	/**
+	 * Calculates the distance from the point (px, py) to the closest edge of the tank's bounding box.
+	 */
+	public double getDistanceTo(double px, double py) {
+		double left = this.x - (this.width / 2.0);
+		double right = this.x + (this.width / 2.0);
+		double top = this.y;
+		double bottom = this.y + this.height;
+
+		double dx = Math.max(left - px, Math.max(0, px - right));
+		double dy = Math.max(top - py, Math.max(0, py - bottom));
+
+		return Math.hypot(dx, dy);
+	}
+
+	/**
 	 * Reset health for new rounds if needed.
 	 */
 	public void reset() {
@@ -235,16 +270,15 @@ public class Tank {
 	/**
 	 * Checks if a specific coordinate point hits this tank's physical body.
 	 */
-	public boolean checkHit(double px, double py) {
+	public boolean checkHit(double px, double py, int radius) {
 		if (!alive)
 			return false;
 
-		// Calculate the boundary box matching the tank body:
-		// g2d.fillRect(x - (width / 2), y, width, height);
-		int leftBound = this.x - (this.width / 2);
-		int rightBound = this.x + (this.width / 2);
-		int topBound = this.y;
-		int bottomBound = this.y + this.height;
+		// check if the projectile center is within (tank bounds + radius)
+		int leftBound = this.x - (this.width / 2) - radius;
+		int rightBound = this.x + (this.width / 2) + radius;
+		int topBound = this.y - radius;
+		int bottomBound = this.y + this.height + radius;
 
 		// Return true if the point falls completely inside these 4 walls
 		return (px >= leftBound && px <= rightBound && py >= topBound && py <= bottomBound);

@@ -88,7 +88,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private List<Tank> tanks;
 
 	// Tracking Variables
-	private Projectile activeProjectile;
+	private List<Projectile> activeProjectiles;
 	private List<Explosion> activeExplosions;
 	private List<ExplosionEffect> activeExplosionEffects;
 	private List<EffectZone> activeEffectZones;
@@ -182,6 +182,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 		// Initialize tanks
 		tanks = new ArrayList<>();
+		activeProjectiles = new ArrayList<>();
 		Color[] playerColors = { Color.RED, Color.BLUE, Color.GREEN, Color.MAGENTA, Color.YELLOW, Color.DARK_GRAY,
 				Color.WHITE, Color.PINK, Color.CYAN, Color.GRAY };
 
@@ -214,7 +215,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		}
 
 		// Reset trackers
-		activeProjectile = null;
+		activeProjectiles = new ArrayList<>();
 		activeExplosions = new ArrayList<>();
 		activeExplosionEffects = new ArrayList<>();
 		activeEffectZones = new ArrayList<>();
@@ -329,62 +330,52 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	            // Apply splash damage to any nearby tanks
 	            for (Tank t : tanks) {
 	                if (t.isAlive()) {
-	                    double dist = Math.hypot(t.getX() - lx, t.getY() - ly);
-	                    if (dist < strikeRadius) {
-	                        double damageFactor = 1.0 - (dist / strikeRadius);
-	                        int damage = (int) (damageFactor * maxStrikeDamage);
-	                        if (damage > 0) {
-	                            t.takeDamage(damage);
-	                            spawnDamageText(t.getX() - 10, t.getY(), damage);
-	                        }
-	                    }
+	                    t.calculateDamage(lx, ly, strikeRadius, maxStrikeDamage);
 	                }
 	            }
 			}
 
-			boolean projectileInAir = (activeProjectile != null && activeProjectile.isActive());
+			boolean projectileInAir = !activeProjectiles.isEmpty();
 
 			// 2. Fire projectiles
 			if (projectileInAir) {
 				// PHASE A: Projectile is flying
 				isShotFired = true;
-				activeProjectile.update(terrain, tanks, WIDTH, HEIGHT);
+				for (int i = activeProjectiles.size() - 1; i >= 0; i--) {
+					Projectile p = activeProjectiles.get(i);
+					p.update(terrain, tanks, WIDTH, HEIGHT);
 
-				if (!activeProjectile.isActive()) {
-					int ex = activeProjectile.getImpactX();
-					int ey = activeProjectile.getImpactY();
-					int blastRadius = activeProjectile.getExplosionRadius();
+					if (!p.isActive()) {
+						int ex = p.getImpactX();
+						int ey = p.getImpactY();
+						int blastRadius = p.getExplosionRadius();
 
-					// Only trigger explosion and damage if the shot impacts inside screen bounds
-					if (ex > 0 && ex < WIDTH && ey > 0 && ey < HEIGHT) {
+						// Only trigger explosion and damage if the shot impacts inside screen bounds
+						if (ex > 0 && ex < WIDTH && ey > 0 && ey < HEIGHT) {
 
-						// Create visual explosion and explode terrain (leaves dirt floating)
-						activeExplosions.add(new Explosion(ex, ey));
-						
-						// Handle special effects
-						AmmoType ammo = activeProjectile.getAmmoType();
-						if (ammo.getName().equals("MINI NUKE")) {
-							activeExplosionEffects.add(new ExplosionEffect(ex, ey, blastRadius));
-							SoundEngine.playMiniNukeExplosionSound();
-						} else if (ammo.getEffectRadius() > 0) {
-							if (ammo.getName().equals("ACID ROUND"))
-									activeEffectZones.add(new AcidZone(ex, ey, ammo.getEffectRadius(), ammo.getEffectTurns(), ammo.getEffectDamage(), terrain));
-						}
-						
-						terrain.explode(ex, ey, blastRadius);
+							// Create visual explosion and explode terrain (leaves dirt floating)
+							activeExplosions.add(new Explosion(ex, ey));
+							
+							// Handle special effects
+							AmmoType ammo = p.getAmmoType();
+							if (ammo.getName().equals("MINI NUKE")) {
+								activeExplosionEffects.add(new ExplosionEffect(ex, ey, blastRadius));
+								SoundEngine.playMiniNukeExplosionSound();
+							} else if (ammo.getEffectRadius() > 0) {
+								if (ammo.getName().equals("ACID ROUND"))
+										activeEffectZones.add(new AcidZone(ex, ey, ammo.getEffectRadius(), ammo.getEffectTurns(), ammo.getEffectDamage(), terrain));
+							}
+							
+							terrain.explode(ex, ey, blastRadius);
 
-						// Calculate blast damage immediately upon impact
-						for (Tank t : tanks) {
-							if (t.isAlive()) {
-								double dist = Math.hypot(t.getX() - ex, t.getY() - ey);
-								if (dist < blastRadius) {
-									double damageFactor = 1.0 - (dist / blastRadius);
-									int damage = (int) (damageFactor * activeProjectile.getDamage());
-									t.takeDamage(damage);
-									spawnDamageText(t.getX() - 10, t.getY(), damage);
+							// Calculate blast damage immediately upon impact
+							for (Tank t : tanks) {
+								if (t.isAlive()) {
+									t.calculateDamage(ex, ey, blastRadius, p.getDamage());
 								}
 							}
 						}
+						activeProjectiles.remove(i);
 					}
 				}
 			} else {
@@ -408,7 +399,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 						
 						// PHASE E: Tanks are stable. Turn Management and Round-End Processing
 						if (lockControls && isShotFired && !tanksMoving) {
-							activeProjectile = null;
+							activeProjectiles.clear();
 							
 							// PHASE F: Apply persistent effects
 							for (EffectZone zone : activeEffectZones) {
@@ -470,14 +461,27 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	}
 
 	public void executeTankFire(Tank tank) {
+		
+		createProjectile(tank);
+
+		SoundEngine.playFireSound();
+		this.lockControls = true;
+	}
+	
+	private void createProjectile (Tank tank) {
 		double rads = Math.toRadians(tank.getBarrelAngle());
 		int startX = (int) (tank.getX() + Math.cos(rads) * 20);
 		int startY = (int) (tank.getY() - Math.sin(rads) * 20);
-
-		this.activeProjectile = new Projectile(startX, startY, tank.getBarrelAngle(), tank.getPower(),
-				tank.getCurrentAmmoType());
-		SoundEngine.playFireSound();
-		this.lockControls = true;
+		
+		if (tank.getCurrentAmmoType().getName().equals("SCATTER SHOT")) {
+			for(int i = -4; i < 4; i++) {
+				this.activeProjectiles.add(new Projectile(startX, startY, tank.getBarrelAngle() + i, tank.getPower(),
+						tank.getCurrentAmmoType()));
+			}
+		} else {
+			this.activeProjectiles.add(new Projectile(startX, startY, tank.getBarrelAngle(), tank.getPower(),
+					tank.getCurrentAmmoType()));
+		}
 	}
 
 	/**
@@ -828,8 +832,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		}
 
 		// Draw projectiles if active
-		if (activeProjectile != null && activeProjectile.isActive()) {
-			activeProjectile.draw(g2d);
+		for (Projectile p : activeProjectiles) {
+			p.draw(g2d);
 		}
 
 		// Draw explosions
@@ -1283,7 +1287,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				boolean explosionsRunning = !activeExplosions.isEmpty();
 
 				// Only fire if all other actions are complete
-				if ((activeProjectile == null || !activeProjectile.isActive()) && !anyTankFalling
+				if (activeProjectiles.isEmpty() && !anyTankFalling
 						&& !explosionsRunning) {
 					Tank currentTank = tanks.get(activePlayerIndex);
 					
@@ -1291,12 +1295,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 					if(currentTank.getInventory().consumeAmmo(currentTank.getCurrentAmmoType())) {
 					
 						// Fire
-						double rads = Math.toRadians(currentTank.getBarrelAngle());
-						int startX = (int) (currentTank.getX() + Math.cos(rads) * 20);
-						int startY = (int) (currentTank.getY() - Math.sin(rads) * 20);
-	
-						activeProjectile = new Projectile(startX, startY, currentTank.getBarrelAngle(),
-								currentTank.getPower(), currentTank.getCurrentAmmoType());
+						createProjectile(currentTank);
+						
 						SoundEngine.playFireSound();
 						lockControls = true;
 					} else {

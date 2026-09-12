@@ -150,16 +150,16 @@ class TankTest {
         Tank tank = new Tank(mockPlayer, 100, mockTerrain, tankColor, 90, playerIndex);
 
         // Center hit
-        assertTrue(tank.checkHit(100, 190));
+        assertTrue(tank.checkHit(100, 190, 4));
         // Boundary edges
-        assertTrue(tank.checkHit(85, 186));
-        assertTrue(tank.checkHit(115, 200));
+        assertTrue(tank.checkHit(85, 186, 4));
+        assertTrue(tank.checkHit(115, 200, 4));
 
         // Misses
-        assertFalse(tank.checkHit(84, 190));  // Too far left
-        assertFalse(tank.checkHit(116, 190)); // Too far right
-        assertFalse(tank.checkHit(100, 185)); // Too high
-        assertFalse(tank.checkHit(100, 201)); // Too low
+        assertFalse(tank.checkHit(80, 190, 4));  // Too far left
+        assertFalse(tank.checkHit(120, 190, 4)); // Too far right
+        assertFalse(tank.checkHit(100, 180, 4)); // Too high
+        assertFalse(tank.checkHit(100, 205, 4)); // Too low
     }
 
     @Test

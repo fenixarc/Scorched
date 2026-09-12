@@ -12,6 +12,7 @@ public class AcidZone extends EffectZone {
 
     private List<AcidDrop> drops;
     private Terrain terrain;
+    private static int ACID_RADIUS = 5;
 
     private static class AcidDrop {
         int x, y;
@@ -59,14 +60,14 @@ public class AcidZone extends EffectZone {
     public void draw(Graphics2D g) {
         g.setColor(Color.GREEN);
         for (AcidDrop drop : drops) {
-            g.fillRect(drop.x, drop.y, 5, 5);
+            g.fillRect(drop.x, drop.y, ACID_RADIUS, ACID_RADIUS);
         }
     }
 
     @Override
     public void applyEffect(Tank tank) {
         for (AcidDrop drop : drops) {
-            if (tank.checkHit(drop.x, drop.y)) {
+            if (tank.checkHit(drop.x, drop.y, ACID_RADIUS)) {
             	SoundEngine.playAcidDamageSound();
                 tank.takeDamage(damagePerTurn);
                 break;

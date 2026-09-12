@@ -19,8 +19,9 @@ public class AcidRound extends AmmoType {
     public static final int EFFECT_RADIUS = 100;
     public static final int EFFECT_TURNS = 5;
     public static final int EFFECT_DAMAGE = 20;
+    public static final int ROUNDS_FIRED = 1;
 
     public AcidRound() {
-        super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION, PROJECTILE_COLOR, EFFECT_RADIUS, EFFECT_TURNS, EFFECT_DAMAGE);
+        super(NAME, RADIUS, EXPLOSION_RADIUS, DAMAGE, COST, DESCRIPTION, PROJECTILE_COLOR, EFFECT_RADIUS, EFFECT_TURNS, EFFECT_DAMAGE, ROUNDS_FIRED);
     }
 }

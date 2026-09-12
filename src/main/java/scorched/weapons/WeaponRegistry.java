@@ -11,6 +11,7 @@ public class WeaponRegistry {
         ALL_WEAPONS.add(new APRound());
         ALL_WEAPONS.add(new MiniNuke());
         ALL_WEAPONS.add(new AcidRound());
+        ALL_WEAPONS.add(new ScatterShot());
         }
 
     public static List<AmmoType> getAllWeapons() {
