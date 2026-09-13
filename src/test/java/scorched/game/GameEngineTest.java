@@ -338,15 +338,15 @@ class GameEngineTest {
     void testKeyTrackingArray() throws Exception {
         Field keysField = GameEngine.class.getDeclaredField("keys");
         keysField.setAccessible(true);
-        boolean[] keys = (boolean[]) keysField.get(gameEngine);
+        java.util.BitSet keys = (java.util.BitSet) keysField.get(gameEngine);
 
         KeyEvent pressLeft = new KeyEvent(gameEngine, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_LEFT, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyPressed(pressLeft);
-        assertTrue(keys[KeyEvent.VK_LEFT], "Left arrow key should register as true when pressed");
+        assertTrue(keys.get(KeyEvent.VK_LEFT), "Left arrow key should register as true when pressed");
 
         KeyEvent releaseLeft = new KeyEvent(gameEngine, KeyEvent.KEY_RELEASED, System.currentTimeMillis(), 0, KeyEvent.VK_LEFT, KeyEvent.CHAR_UNDEFINED);
         gameEngine.keyReleased(releaseLeft);
-        assertFalse(keys[KeyEvent.VK_LEFT], "Left arrow key should register as false when released");
+        assertFalse(keys.get(KeyEvent.VK_LEFT), "Left arrow key should register as false when released");
     }
 
     @Test

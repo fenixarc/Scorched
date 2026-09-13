@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import scorched.sound.SoundEngine;
-
 public class AcidZone extends EffectZone {
 
     private List<AcidDrop> drops;

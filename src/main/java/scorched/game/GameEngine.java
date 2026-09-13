@@ -44,6 +44,18 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private GameState currentState;
 	private volatile boolean isGeneratingWorld;
 	
+	private static final Font FONT_ARIAL_PLAIN_18 = new Font("Arial", Font.PLAIN, 18);
+	private static final Font FONT_ARIAL_BOLD_28 = new Font("Arial", Font.BOLD, 28);
+	private static final Font FONT_ARIAL_BOLD_22 = new Font("Arial", Font.BOLD, 22);
+	private static final Font FONT_ARIAL_BOLD_18 = new Font("Arial", Font.BOLD, 18);
+	private static final Font FONT_ARIAL_PLAIN_15 = new Font("Arial", Font.PLAIN, 15);
+	private static final Font FONT_ARIAL_PLAIN_14 = new Font("Arial", Font.PLAIN, 14);
+	private static final Font FONT_ARIAL_BOLD_14 = new Font("Arial", Font.BOLD, 14);
+	private static final Font FONT_ARIAL_BOLD_36 = new Font("Arial", Font.BOLD, 36);
+	private static final Font FONT_ARIAL_BOLD_20 = new Font("Arial", Font.BOLD, 20);
+	private static final Font FONT_ARIAL_BOLD_42 = new Font("Arial", Font.BOLD, 42);
+	private static final Font FONT_ARIAL_PLAIN_20 = new Font("Arial", Font.PLAIN, 20);
+
 	// All Menus
 	private static int BOX_HEIGHT = 60;
 	private static int BOX_GAP = 20;
@@ -56,7 +68,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	
 	// Player Configuration Setup Fields
 	private int currentPlayerSetupIndex;
-	private List<Player> players;
+	private List<Player> players = new ArrayList<>(10);
 	private PlayerConfigMenuOptions selectedPlayerConfigOption;
 	
 	// Buy Menu Tracking
@@ -85,23 +97,23 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	// Game Classes
 	private Terrain terrain;
 	private WeatherManager weatherManager;
-	private List<Tank> tanks;
+	private List<Tank> tanks = new ArrayList<>(10);
 
 	// Tracking Variables
-	private List<Projectile> activeProjectiles;
-	private List<Explosion> activeExplosions;
-	private List<ExplosionEffect> activeExplosionEffects;
-	private List<EffectZone> activeEffectZones;
-	private List<FloatingText> floatingTexts;
+	private List<Projectile> activeProjectiles = new ArrayList<>(20);
+	private List<Explosion> activeExplosions = new ArrayList<>(10);
+	private List<ExplosionEffect> activeExplosionEffects = new ArrayList<>(10);
+	private List<EffectZone> activeEffectZones = new ArrayList<>(5);
+	private List<FloatingText> floatingTexts = new ArrayList<>(20);
 	private int selectedPlayerCount;
 	private int activePlayerIndex;
 	private boolean lockControls;
 	private boolean isShotFired;
-	private List<TurretDebris> activeDebris;
+	private List<TurretDebris> activeDebris = new ArrayList<>(20);
 	private MusicTrack currentBattleTrack;
 
 	// Tracks which keys are currently being held down physically
-	private boolean[] keys = new boolean[256];
+	private java.util.BitSet keys = new java.util.BitSet(256);
 
 	/**
 	 * Class Constructor.
@@ -183,6 +195,14 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Initialize tanks
 		tanks = new ArrayList<>();
 		activeProjectiles = new ArrayList<>();
+		activeExplosions = new ArrayList<>();
+		activeExplosionEffects = new ArrayList<>();
+		activeEffectZones = new ArrayList<>();
+		floatingTexts = new ArrayList<>();
+		activeDebris = new ArrayList<>();
+		
+		tanks.clear();
+		activeProjectiles.clear();
 		Color[] playerColors = { Color.RED, Color.BLUE, Color.GREEN, Color.MAGENTA, Color.YELLOW, Color.DARK_GRAY,
 				Color.WHITE, Color.PINK, Color.CYAN, Color.GRAY };
 
@@ -215,15 +235,15 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		}
 
 		// Reset trackers
-		activeProjectiles = new ArrayList<>();
-		activeExplosions = new ArrayList<>();
-		activeExplosionEffects = new ArrayList<>();
-		activeEffectZones = new ArrayList<>();
-		floatingTexts = new ArrayList<>();
+		activeProjectiles.clear();
+		activeExplosions.clear();
+		activeExplosionEffects.clear();
+		activeEffectZones.clear();
+		floatingTexts.clear();
 		activePlayerIndex = 0;
 		lockControls = false;
 		isShotFired = false;
-		activeDebris = new ArrayList<>();
+		activeDebris.clear();
 
 		System.out.println("Starting new game: \n" + "activeEnv: " + activeEnv + "\n" + "selectedPlayerCount: "
 				+ selectedPlayerCount + "\n" + "sectors: " + sectors.size() + "\n" + "sectorWidth: " + sectorWidth
@@ -453,17 +473,17 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 						activeTank.getAI().takeTurn(this.currentState, terrain, getActivePlayers());
 						executeTankFire(activeTank);
 					} else {
-						if (keys[KeyEvent.VK_LEFT]) {
+						if (keys.get(KeyEvent.VK_LEFT)) {
 							SoundEngine.playBarrelRotateSound();
 							activeTank.changeAngle(1);
 						}
-						if (keys[KeyEvent.VK_RIGHT]) {
+						if (keys.get(KeyEvent.VK_RIGHT)) {
 							SoundEngine.playBarrelRotateSound();
 							activeTank.changeAngle(-1);
 						}
-						if (keys[KeyEvent.VK_UP])
+						if (keys.get(KeyEvent.VK_UP))
 							activeTank.changePower(0.15);
-						if (keys[KeyEvent.VK_DOWN])
+						if (keys.get(KeyEvent.VK_DOWN))
 							activeTank.changePower(-0.15);
 					}
 				}
@@ -585,28 +605,28 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        boolean isSelected = (options[i] == selectedMainMenuOption);
 	        boolean isCursorBlinking = (System.currentTimeMillis() / 500) % 2 == 0;
 
-	        String displayText = "";
+	        StringBuilder sb = new StringBuilder();
 	        switch (options[i]) {
 	        	case PLAYERS:
-	        		displayText = "PLAYERS: " + selectedPlayerCount;
+	        		sb.append("PLAYERS: ").append(selectedPlayerCount);
 	        		break;
 	        	case HILLS:
-	        		displayText = "HILLS: " + selectedHillType.getLabel().toUpperCase();
+	        		sb.append("HILLS: ").append(selectedHillType.getLabel().toUpperCase());
 	        		break;
 				case MONEY:
-					displayText = "MONEY: $" + startingPlayerMoney;
+					sb.append("MONEY: $").append(startingPlayerMoney);
 					if (isSelected && isCursorBlinking) {
-						displayText += "|";
+						sb.append("|");
 					}
 					break;
 	        		
 	        }
 
-	        MenuUI.drawMenuOptionBox(g2d, displayText, boxY, 300, BOX_HEIGHT, isSelected);
+	        MenuUI.drawMenuOptionBox(g2d, sb.toString(), boxY, 300, BOX_HEIGHT, isSelected);
 	    }
 
 	    // Footer
-		g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+		g2d.setFont(FONT_ARIAL_PLAIN_18);
 		g2d.setColor(Color.GREEN);
 		drawCenteredString(g2d, "UP / DOWN ARROWS CHANGE SELECTION", HEIGHT - 130);
 		drawCenteredString(g2d, "RIGHT / LEFT ARROWS CHANGE SETTING", HEIGHT - 110);
@@ -623,7 +643,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			g2d.fillRect(0, 0, WIDTH, HEIGHT);
 		}
 
-		g2d.setFont(new Font("Arial", Font.BOLD, 28));
+		g2d.setFont(FONT_ARIAL_BOLD_28);
 		g2d.setColor(Color.YELLOW);
 		drawCenteredString(g2d, "CONFIGURE PLAYER " + (currentPlayerSetupIndex + 1) + " / " + selectedPlayerCount, HEIGHT / 2 - 140);
 
@@ -644,27 +664,27 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			boolean isSelected = (option == selectedPlayerConfigOption);
 			boolean isCursorBlinking = (System.currentTimeMillis() / 500) % 2 == 0;
 
-			String displayText = "";
+			StringBuilder sb = new StringBuilder();
 			switch (option) {
 			case NAME:
-				displayText = "NAME: " + players.get(currentPlayerSetupIndex).getPlayerName();
+				sb.append("NAME: ").append(players.get(currentPlayerSetupIndex).getPlayerName());
 				if (isSelected && isCursorBlinking) {
-					displayText += "|";
+					sb.append("|");
 				}
 				break;
 			case CONTROL:
-				displayText = "CONTROL: " + (isAI ? "AI" : "HUMAN");
+				sb.append("CONTROL: ").append(isAI ? "AI" : "HUMAN");
 				break;
 			case DIFFICULTY:
-				displayText = "DIFFICULTY: " + players.get(currentPlayerSetupIndex).getPlayerDifficulty().getLabel().toUpperCase();
+				sb.append("DIFFICULTY: ").append(players.get(currentPlayerSetupIndex).getPlayerDifficulty().getLabel().toUpperCase());
 				break;
 			}
 
-			MenuUI.drawMenuOptionBox(g2d, displayText, boxY, 350, BOX_HEIGHT, isSelected);
+			MenuUI.drawMenuOptionBox(g2d, sb.toString(), boxY, 350, BOX_HEIGHT, isSelected);
 		}
 
 		// Footer
-		g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+		g2d.setFont(FONT_ARIAL_PLAIN_18);
 		g2d.setColor(Color.GREEN);
 		drawCenteredString(g2d, "UP / DOWN ARROWS CHANGE SELECTION", HEIGHT - 130);
 		drawCenteredString(g2d, "RIGHT / LEFT ARROWS CHANGE SETTING", HEIGHT - 110);
@@ -693,11 +713,11 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	    Player currentPlayer = players.get(currentBuyPlayerIndex);
 
 	    // Display Header & Tank Money
-	    g2d.setFont(new Font("Arial", Font.BOLD, 28));
+	    g2d.setFont(FONT_ARIAL_BOLD_28);
 	    g2d.setColor(Color.YELLOW);
 	    drawCenteredString(g2d, "ARMORY - " + currentPlayer.getPlayerName().toUpperCase(), 60);
 
-	    g2d.setFont(new Font("Arial", Font.BOLD, 22));
+	    g2d.setFont(FONT_ARIAL_BOLD_22);
 	    g2d.setColor(Color.GREEN);
 	    drawCenteredString(g2d, String.format("CURRENT MONEY: $%d", currentPlayer.getMoney()), 100);
 
@@ -731,7 +751,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        g2d.drawRect(boxX, boxY, optionBoxWidth, BOX_HEIGHT);
 
 	        g2d.setColor(Color.WHITE);
-	        g2d.setFont(new Font("Arial", Font.BOLD, 18));
+	        g2d.setFont(FONT_ARIAL_BOLD_18);
 	        FontMetrics fm = g2d.getFontMetrics();
 	        int textX = boxX + (optionBoxWidth - fm.stringWidth(text)) / 2;
 	        int textY = boxY + (BOX_HEIGHT / 2) + (fm.getAscent() / 2) - 2;
@@ -754,7 +774,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        g2d.drawRect(descBoxX, descBoxY, descBoxWidth, descBoxHeight);
 
 	        // Header Title
-	        g2d.setFont(new Font("Arial", Font.BOLD, 22));
+	        g2d.setFont(FONT_ARIAL_BOLD_22);
 	        g2d.setColor(Color.CYAN);
 	        g2d.drawString(selectedAmmo.getName().toUpperCase(), descBoxX + 20, descBoxY + 35);
 
@@ -762,7 +782,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        g2d.drawLine(descBoxX + 20, descBoxY + 45, descBoxX + descBoxWidth - 20, descBoxY + 45);
 
 	        // Stats Display
-	        g2d.setFont(new Font("Arial", Font.BOLD, 16));
+	        g2d.setFont(FONT_ARIAL_BOLD_18);
 	        g2d.setColor(Color.GREEN);
 	        g2d.drawString("COST: $" + selectedAmmo.getCost(), descBoxX + 20, descBoxY + 75);
 	        g2d.drawString("DAMAGE: " + selectedAmmo.getDamage(), descBoxX + 20, descBoxY + 100);
@@ -775,7 +795,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	        }
 
 	        // Description Body Text
-	        g2d.setFont(new Font("Arial", Font.PLAIN, 15));
+	        g2d.setFont(FONT_ARIAL_PLAIN_15);
 	        g2d.setColor(Color.WHITE);
 
 	        String description = selectedAmmo.getDescription(); // Make sure AmmoType has getDescription()
@@ -783,7 +803,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	    }
 
 	    // Footer Instructions
-	    g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+	    g2d.setFont(FONT_ARIAL_PLAIN_18);
 	    g2d.setColor(Color.GREEN);
 	    drawCenteredString(g2d, "UP / DOWN ARROWS CHANGE SELECTION", HEIGHT - 130);
 	    drawCenteredString(g2d, "SPACE BUYS WEAPON", HEIGHT - 110);
@@ -1040,8 +1060,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		int keyCode = e.getKeyCode();
 
 		// Safety check to avoid ArrayOutOfBoundsException if an exotic key is pressed
-		if (keyCode >= 0 && keyCode < keys.length) {
-			keys[keyCode] = true;
+		if (keyCode >= 0 && keyCode < 256) {
+			keys.set(keyCode, true);
 		}
 
 		// ****************** //
@@ -1438,8 +1458,8 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		int keyCode = e.getKeyCode();
 
 		// When the key is lifted, set its state to false
-		if (keyCode >= 0 && keyCode < keys.length) {
-			keys[keyCode] = false;
+		if (keyCode >= 0 && keyCode < 256) {
+			keys.set(keyCode, false);
 		}
 	}
 
