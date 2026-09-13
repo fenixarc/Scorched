@@ -5,6 +5,7 @@ import java.awt.Color;
 /**
  * Spreads acid over a wide area.
  * Does damage every turn.
+ * Future plan to have Acid negate shields.
  */
 
 public class AcidRound extends AmmoType {

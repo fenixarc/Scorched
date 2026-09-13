@@ -402,13 +402,24 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 							activeProjectiles.clear();
 							
 							// PHASE F: Apply persistent effects
+							java.util.Map<Tank, java.util.Map<String, Integer>> pendingDamage = new java.util.HashMap<>();
+
 							for (EffectZone zone : activeEffectZones) {
 								for (Tank t : tanks) {
-									if (t.isAlive()) {
-										zone.applyEffect(t);
+									if (t.isAlive() && zone.contains(t.getX(), t.getY())) {
+										pendingDamage.putIfAbsent(t, new java.util.HashMap<>());
+										java.util.Map<String, Integer> tankEffects = pendingDamage.get(t);
+										tankEffects.put(zone.type, Math.max(tankEffects.getOrDefault(zone.type, 0), zone.damagePerTurn));
 									}
 								}
 								zone.decrementTurn();
+							}
+
+							for (java.util.Map.Entry<Tank, java.util.Map<String, Integer>> entry : pendingDamage.entrySet()) {
+								Tank t = entry.getKey();
+								for (int damage : entry.getValue().values()) {
+									t.takeDamage(damage);
+								}
 							}
 
 							int survivorsCount = 0;

@@ -7,17 +7,18 @@ public abstract class EffectZone {
     protected int radius;
     protected int turnsRemaining;
     protected int damagePerTurn;
+    protected String type;
 
-    public EffectZone(double x, double y, int radius, int turnsRemaining, int damagePerTurn) {
+    public EffectZone(double x, double y, int radius, int turnsRemaining, int damagePerTurn, String type) {
         this.x = x;
         this.y = y;
         this.radius = radius;
         this.turnsRemaining = turnsRemaining;
         this.damagePerTurn = damagePerTurn;
+        this.type = type;
     }
 
     public abstract void draw(Graphics2D g);
-    public abstract void applyEffect(Tank tank);
 
     public boolean isExpired() {
         return turnsRemaining <= 0;

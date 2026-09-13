@@ -13,6 +13,7 @@ public class AcidZone extends EffectZone {
     private List<AcidDrop> drops;
     private Terrain terrain;
     private static int ACID_RADIUS = 5;
+    private static String TYPE = "ACID";
 
     private static class AcidDrop {
         int x, y;
@@ -20,7 +21,7 @@ public class AcidZone extends EffectZone {
     }
 
     public AcidZone(double x, double y, int radius, int turnsRemaining, int damagePerTurn, Terrain terrain) {
-        super(x, y, radius, turnsRemaining, damagePerTurn);
+        super(x, y, radius, turnsRemaining, damagePerTurn, TYPE);
         this.terrain = terrain;
         this.drops = new ArrayList<>();
         generateAcidDrops((int)x, (int)y, radius);
@@ -61,17 +62,6 @@ public class AcidZone extends EffectZone {
         g.setColor(Color.GREEN);
         for (AcidDrop drop : drops) {
             g.fillRect(drop.x, drop.y, ACID_RADIUS, ACID_RADIUS);
-        }
-    }
-
-    @Override
-    public void applyEffect(Tank tank) {
-        for (AcidDrop drop : drops) {
-            if (tank.checkHit(drop.x, drop.y, ACID_RADIUS)) {
-            	SoundEngine.playAcidDamageSound();
-                tank.takeDamage(damagePerTurn);
-                break;
-            }
         }
     }
 }
