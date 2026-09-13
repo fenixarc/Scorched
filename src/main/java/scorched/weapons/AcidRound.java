@@ -13,12 +13,12 @@ public class AcidRound extends AmmoType {
 	public static final int RADIUS = 4;
 	public static final int EXPLOSION_RADIUS = 0;
 	public static final int DAMAGE = 0;
-	public static final int COST = 500;
+	public static final int COST = 700;
     public static final String DESCRIPTION = "Spreads acid over a wide area. Does damage every turn.";
     public static final Color PROJECTILE_COLOR = Color.GREEN;
     public static final int EFFECT_RADIUS = 100;
     public static final int EFFECT_TURNS = 5;
-    public static final int EFFECT_DAMAGE = 20;
+    public static final int EFFECT_DAMAGE = 10;
     public static final int ROUNDS_FIRED = 1;
 
     public AcidRound() {

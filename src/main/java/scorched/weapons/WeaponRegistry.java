@@ -9,9 +9,9 @@ public class WeaponRegistry {
     static {
     	ALL_WEAPONS.add(new HERound());
         ALL_WEAPONS.add(new APRound());
-        ALL_WEAPONS.add(new MiniNuke());
-        ALL_WEAPONS.add(new AcidRound());
         ALL_WEAPONS.add(new ScatterShot());
+        ALL_WEAPONS.add(new AcidRound());
+        ALL_WEAPONS.add(new MiniNuke());
         }
 
     public static List<AmmoType> getAllWeapons() {

@@ -13,7 +13,7 @@ public class ScatterShot extends AmmoType {
 	private static int RADIUS = 2;
 	private static int EXPLOSION_RADIUS = 10;
 	private static int DAMAGE = 10;
-	private static int COST = 100;
+	private static int COST = 500;
 	private static String DESCRIPTION = "Fires 8 shots in a cone. High close range damage.";
 	private static Color PROJECTILE_COLOR = Color.YELLOW;
 	private static int EFFECT_RADIUS = 0;
