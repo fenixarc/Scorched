@@ -3,8 +3,6 @@ package scorched.game;
 import static org.junit.Assert.*;
 import org.junit.Test;
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ShieldZoneTest {
 

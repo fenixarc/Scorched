@@ -53,4 +53,31 @@ public class AmmoTypeTest {
             () -> assertEquals(null, freeZeroAmmo.getDescription())
         );
     }
+
+    @Test
+    public void testAmmoTypeConstructorWithColor() {
+        java.awt.Color color = java.awt.Color.RED;
+        AmmoType ammo = new AmmoType("Red Ammo", 1, 1, 1, 1, "Desc", color);
+        assertEquals(color, ammo.getProjectileColor());
+    }
+
+    @Test
+    public void testAmmoTypeFullConstructor() {
+        java.awt.Color color = java.awt.Color.BLUE;
+        AmmoType ammo = new AmmoType("Full", 2, 3, 4, 5, "Desc", color, 6, 7, 8, 9);
+        assertAll("Verify full constructor",
+            () -> assertEquals("Full", ammo.getName()),
+            () -> assertEquals(2, ammo.getRadius()),
+            () -> assertEquals(3, ammo.getExplosionRadius()),
+            () -> assertEquals(4, ammo.getDamage()),
+            () -> assertEquals(5, ammo.getCost()),
+            () -> assertEquals("Desc", ammo.getDescription()),
+            () -> assertEquals(color, ammo.getProjectileColor()),
+            () -> assertEquals(6, ammo.getEffectRadius()),
+            () -> assertEquals(7, ammo.getEffectTurns()),
+            () -> assertEquals(8, ammo.getEffectDamage()),
+            () -> assertEquals(9, ammo.getRoundsFired())
+        );
+    }
+
 }

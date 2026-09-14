@@ -404,6 +404,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 										if (damage > 0) {
 											if(activeShield != null) {
 												activeShield.absorbDamage(damage);
+												spawnDamageText(t.getX() - 10, t.getY(), damage);
 											} else {
 												t.takeDamage(damage);
 											}
@@ -461,6 +462,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 							activeEquipment = null;
 							
 							// PHASE G: Apply persistent effects
+							// TODO: make acid eat terrain
 							java.util.Map<Tank, java.util.Map<String, Integer>> pendingDamage = new java.util.HashMap<>();
 
 							for (int i = activeEffectZones.size() - 1; i >= 0; i--) {
@@ -505,6 +507,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 								
 								if(activeShield != null) {
 									activeShield.absorbDamage(totalDamage);
+									spawnDamageText(t.getX() - 10, t.getY(), totalDamage);
 								} else {
 									t.takeDamage(totalDamage);
 								}
@@ -601,6 +604,15 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		String textMsg = "-" + amount;
 		// Tweak color: Light red for standard hits, bold bright red for big hits
 		Color numColor = (amount > 35) ? new Color(255, 50, 50) : new Color(255, 140, 140);
+		
+		// If shield is active, use white
+		// Note: This is a simple check; if multiple zones exist, this might need refinement
+		for(EffectZone z : activeEffectZones) {
+			if(z instanceof ShieldZone && z.contains(x + 10, y)) {
+				numColor = Color.WHITE;
+				break;
+			}
+		}
 
 		// Add text object to animate for 50 frames
 		floatingTexts.add(new FloatingText(x, y, textMsg, numColor, 50));
