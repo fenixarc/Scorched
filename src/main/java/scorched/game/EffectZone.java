@@ -21,11 +21,13 @@ public abstract class EffectZone {
     public abstract void draw(Graphics2D g);
 
     public boolean isExpired() {
-        return turnsRemaining <= 0;
+        return turnsRemaining == 0;
     }
 
     public void decrementTurn() {
-        turnsRemaining--;
+        if (turnsRemaining > 0) {
+            turnsRemaining--;
+        }
     }
 
     public boolean contains(double tankX, double tankY) {

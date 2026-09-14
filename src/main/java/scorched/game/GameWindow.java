@@ -6,7 +6,9 @@ import java.awt.Toolkit;
 
 public class GameWindow extends JFrame {
 
-    // Constructor handles configuration and dependency injection
+	private static final long serialVersionUID = 1L;
+
+	// Constructor handles configuration and dependency injection
     public GameWindow(GameEngine gameEngine) {
         super("Scorched");
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

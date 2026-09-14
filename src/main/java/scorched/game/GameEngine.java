@@ -34,6 +34,7 @@ import javax.imageio.ImageIO;
 
 public class GameEngine extends JPanel implements Runnable, KeyListener, DamageListener {
 
+	private static final long serialVersionUID = 1L;
 	public final int WIDTH;
 	public final int HEIGHT;
 
@@ -45,16 +46,10 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 	private volatile boolean isGeneratingWorld;
 	
 	private static final Font FONT_ARIAL_PLAIN_18 = new Font("Arial", Font.PLAIN, 18);
+	private static final Font FONT_ARIAL_PLAIN_15 = new Font("Arial", Font.PLAIN, 15);
 	private static final Font FONT_ARIAL_BOLD_28 = new Font("Arial", Font.BOLD, 28);
 	private static final Font FONT_ARIAL_BOLD_22 = new Font("Arial", Font.BOLD, 22);
 	private static final Font FONT_ARIAL_BOLD_18 = new Font("Arial", Font.BOLD, 18);
-	private static final Font FONT_ARIAL_PLAIN_15 = new Font("Arial", Font.PLAIN, 15);
-	private static final Font FONT_ARIAL_PLAIN_14 = new Font("Arial", Font.PLAIN, 14);
-	private static final Font FONT_ARIAL_BOLD_14 = new Font("Arial", Font.BOLD, 14);
-	private static final Font FONT_ARIAL_BOLD_36 = new Font("Arial", Font.BOLD, 36);
-	private static final Font FONT_ARIAL_BOLD_20 = new Font("Arial", Font.BOLD, 20);
-	private static final Font FONT_ARIAL_BOLD_42 = new Font("Arial", Font.BOLD, 42);
-	private static final Font FONT_ARIAL_PLAIN_20 = new Font("Arial", Font.PLAIN, 20);
 
 	// All Menus
 	private static int BOX_HEIGHT = 60;
@@ -101,6 +96,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 	// Tracking Variables
 	private List<Projectile> activeProjectiles = new ArrayList<>(20);
+	private AmmoType activeEquipment = null;
 	private List<Explosion> activeExplosions = new ArrayList<>(10);
 	private List<ExplosionEffect> activeExplosionEffects = new ArrayList<>(10);
 	private List<EffectZone> activeEffectZones = new ArrayList<>(5);
@@ -195,14 +191,13 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 		// Initialize tanks
 		tanks = new ArrayList<>();
 		activeProjectiles = new ArrayList<>();
+		activeEquipment = null;
 		activeExplosions = new ArrayList<>();
 		activeExplosionEffects = new ArrayList<>();
 		activeEffectZones = new ArrayList<>();
 		floatingTexts = new ArrayList<>();
 		activeDebris = new ArrayList<>();
 		
-		tanks.clear();
-		activeProjectiles.clear();
 		Color[] playerColors = { Color.RED, Color.BLUE, Color.GREEN, Color.MAGENTA, Color.YELLOW, Color.DARK_GRAY,
 				Color.WHITE, Color.PINK, Color.CYAN, Color.GRAY };
 
@@ -236,6 +231,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 
 		// Reset trackers
 		activeProjectiles.clear();
+		activeEquipment = null;
 		activeExplosions.clear();
 		activeExplosionEffects.clear();
 		activeEffectZones.clear();
@@ -391,7 +387,28 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 							// Calculate blast damage immediately upon impact
 							for (Tank t : tanks) {
 								if (t.isAlive()) {
-									t.calculateDamage(ex, ey, blastRadius, p.getDamage());
+									// Check for active shield
+									ShieldZone activeShield = null;
+									for(EffectZone z : activeEffectZones) {
+										if(z instanceof ShieldZone && z.contains(t.getX(), t.getY())) {
+											activeShield = (ShieldZone) z;
+											break;
+										}
+									}
+									
+									double dist = t.getDistanceTo(ex, ey);
+									if (dist < blastRadius) {
+										double damageFactor = 1.0 - (dist / blastRadius);
+										int damage = (int) (damageFactor * p.getDamage());
+										
+										if (damage > 0) {
+											if(activeShield != null) {
+												activeShield.absorbDamage(damage);
+											} else {
+												t.takeDamage(damage);
+											}
+										}
+									}
 								}
 							}
 						}
@@ -417,28 +434,79 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 							}
 						}
 						
-						// PHASE E: Tanks are stable. Turn Management and Round-End Processing
+						// PHASE E: Use Equipment
+						boolean equipmentInUse = !(activeEquipment == null);
+						
+						if (equipmentInUse) {
+							isShotFired = true;
+							
+							if (activeEquipment.getName().equals("SMALL SHIELD")) {
+								// Remove existing shield for this tank if any
+								for (int j = activeEffectZones.size() - 1; j >= 0; j--) {
+									EffectZone z = activeEffectZones.get(j);
+									if (z instanceof ShieldZone && ((ShieldZone) z).getOwner() == tanks.get(activePlayerIndex)) {
+										activeEffectZones.remove(j);
+									}
+								}
+								// Shield is created around the active tank
+								activeEffectZones.add(new ShieldZone(tanks.get(activePlayerIndex), activeEquipment.getEffectRadius(), 0));
+							}
+							
+							equipmentInUse = false;
+						}
+						
+						// PHASE F: Tanks are stable. Turn Management and Round-End Processing
 						if (lockControls && isShotFired && !tanksMoving) {
 							activeProjectiles.clear();
+							activeEquipment = null;
 							
-							// PHASE F: Apply persistent effects
+							// PHASE G: Apply persistent effects
 							java.util.Map<Tank, java.util.Map<String, Integer>> pendingDamage = new java.util.HashMap<>();
 
-							for (EffectZone zone : activeEffectZones) {
+							for (int i = activeEffectZones.size() - 1; i >= 0; i--) {
+								EffectZone zone = activeEffectZones.get(i);
 								for (Tank t : tanks) {
 									if (t.isAlive() && zone.contains(t.getX(), t.getY())) {
-										pendingDamage.putIfAbsent(t, new java.util.HashMap<>());
-										java.util.Map<String, Integer> tankEffects = pendingDamage.get(t);
-										tankEffects.put(zone.type, Math.max(tankEffects.getOrDefault(zone.type, 0), zone.damagePerTurn));
+										if (zone instanceof ShieldZone) {
+											ShieldZone shield = (ShieldZone) zone;
+											// Shield absorbs damage instead of tank
+											// Note: This logic assumes damage comes from other zones
+											// TODO: For direct projectile hits, we need to handle that in projectile impact
+											// (shield variable is used by logic below if needed)
+											if(shield.isDestroyed()) {} 
+										} else {
+											pendingDamage.putIfAbsent(t, new java.util.HashMap<>());
+											java.util.Map<String, Integer> tankEffects = pendingDamage.get(t);
+											tankEffects.put(zone.type, Math.max(tankEffects.getOrDefault(zone.type, 0), zone.damagePerTurn));
+										}
 									}
 								}
 								zone.decrementTurn();
+								if (zone instanceof ShieldZone && ((ShieldZone) zone).isDestroyed()) {
+									activeEffectZones.remove(i);
+								}
 							}
 
 							for (java.util.Map.Entry<Tank, java.util.Map<String, Integer>> entry : pendingDamage.entrySet()) {
 								Tank t = entry.getKey();
+								int totalDamage = 0;
 								for (int damage : entry.getValue().values()) {
-									t.takeDamage(damage);
+									totalDamage += damage;
+								}
+								
+								// Check for active shield
+								ShieldZone activeShield = null;
+								for(EffectZone z : activeEffectZones) {
+									if(z instanceof ShieldZone && z.contains(t.getX(), t.getY())) {
+										activeShield = (ShieldZone) z;
+										break;
+									}
+								}
+								
+								if(activeShield != null) {
+									activeShield.absorbDamage(totalDamage);
+								} else {
+									t.takeDamage(totalDamage);
 								}
 							}
 
@@ -471,7 +539,7 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 				if (activeTank.isAlive()) {
 					if (activeTank.getAI() != null) {
 						activeTank.getAI().takeTurn(this.currentState, terrain, getActivePlayers());
-						executeTankFire(activeTank);
+						createProjectile(activeTank);
 					} else {
 						if (keys.get(KeyEvent.VK_LEFT)) {
 							SoundEngine.playBarrelRotateSound();
@@ -490,29 +558,29 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 			}
 		}
 	}
-
-	public void executeTankFire(Tank tank) {
-		
-		createProjectile(tank);
-
-		SoundEngine.playFireSound();
-		this.lockControls = true;
-	}
 	
 	private void createProjectile (Tank tank) {
 		double rads = Math.toRadians(tank.getBarrelAngle());
 		int startX = (int) (tank.getX() + Math.cos(rads) * 20);
 		int startY = (int) (tank.getY() - Math.sin(rads) * 20);
 		
-		if (tank.getCurrentAmmoType().getName().equals("SCATTER SHOT")) {
+		switch (tank.getCurrentAmmoType().getName()) {
+		case "SCATTER SHOT":
 			for(int i = -4; i < 4; i++) {
 				this.activeProjectiles.add(new Projectile(startX, startY, tank.getBarrelAngle() + i, tank.getPower(),
 						tank.getCurrentAmmoType()));
 			}
-		} else {
+			break;
+		case "SMALL SHIELD":
+			this.activeEquipment = tank.getCurrentAmmoType();
+			break;
+		default:
 			this.activeProjectiles.add(new Projectile(startX, startY, tank.getBarrelAngle(), tank.getPower(),
 					tank.getCurrentAmmoType()));
+			break;
 		}
+		lockControls = true;
+		SoundEngine.playFireSound();
 	}
 
 	/**
@@ -1328,8 +1396,6 @@ public class GameEngine extends JPanel implements Runnable, KeyListener, DamageL
 						// Fire
 						createProjectile(currentTank);
 						
-						SoundEngine.playFireSound();
-						lockControls = true;
 					} else {
 						SoundEngine.playErrorSound();
 					}

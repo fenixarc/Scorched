@@ -187,7 +187,8 @@ class GameEngineTest {
         assertEquals(GameState.PLAYING, getState(), "Confirming setup for all players should start the game and switch state to PLAYING");
     }
 
-    @Test
+    @SuppressWarnings("unchecked")
+	@Test
     @DisplayName("Player Config: Text typing modifies player name and backspace deletes characters")
     void testPlayerConfigNameEditing() throws Exception {
         // Transition to PLAYER_CONFIG
@@ -201,7 +202,6 @@ class GameEngineTest {
         KeyEvent typeA = new KeyEvent(gameEngine, KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, 'A');
         gameEngine.keyTyped(typeA);
 
-        @SuppressWarnings("unchecked")
         List<Player> players = (List<Player>) playersField.get(gameEngine);
         assertEquals("Player 1A", players.get(0).getPlayerName());
 
@@ -386,7 +386,9 @@ class GameEngineTest {
         lockControlsField.setAccessible(true);
 
         // Act
-        gameEngine.executeTankFire(mockTank);
+        Method createProjectileMethod = GameEngine.class.getDeclaredMethod("createProjectile", Tank.class);
+        createProjectileMethod.setAccessible(true);
+        createProjectileMethod.invoke(gameEngine, mockTank);
 
         // Assert
         List<?> activeProjectiles = (List<?>) activeProjectilesField.get(gameEngine);
@@ -413,7 +415,9 @@ class GameEngineTest {
         lockControlsField.setAccessible(true);
 
         // Act
-        gameEngine.executeTankFire(mockTank);
+        Method createProjectileMethod = GameEngine.class.getDeclaredMethod("createProjectile", Tank.class);
+        createProjectileMethod.setAccessible(true);
+        createProjectileMethod.invoke(gameEngine, mockTank);
 
         // Assert
         List<?> activeProjectiles = (List<?>) activeProjectilesField.get(gameEngine);

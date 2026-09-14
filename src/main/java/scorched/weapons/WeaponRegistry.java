@@ -10,6 +10,7 @@ public class WeaponRegistry {
     	ALL_WEAPONS.add(new HERound());
         ALL_WEAPONS.add(new APRound());
         ALL_WEAPONS.add(new ScatterShot());
+        ALL_WEAPONS.add(new SmallShield());
         ALL_WEAPONS.add(new AcidRound());
         ALL_WEAPONS.add(new MiniNuke());
         }
